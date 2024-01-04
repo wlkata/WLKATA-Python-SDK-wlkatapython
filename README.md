@@ -1,6 +1,8 @@
-# wlkatapython
+# WLKATA Python SDK: wlkatapython
 
 #### Python version 3.9.0
+
+#### Date of latest update: Jan 04 2024
 
 License: MIT
 
