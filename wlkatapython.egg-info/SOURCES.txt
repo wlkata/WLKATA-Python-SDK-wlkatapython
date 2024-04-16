@@ -1,0 +1,9 @@
+LICENSE
+README.md
+setup.py
+wlkatapython.py
+wlkatapython.egg-info/PKG-INFO
+wlkatapython.egg-info/SOURCES.txt
+wlkatapython.egg-info/dependency_links.txt
+wlkatapython.egg-info/requires.txt
+wlkatapython.egg-info/top_level.txt

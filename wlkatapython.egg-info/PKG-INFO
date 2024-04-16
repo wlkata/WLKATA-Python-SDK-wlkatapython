@@ -1,0 +1,9 @@
+Metadata-Version: 2.1
+Name: wlkatapython
+Version: 0.0.8
+Summary: WLKATA-Mirobot/E4 Multiple robotic arm control!
+Author: DS
+License-File: LICENSE
+Requires-Dist: pyserial
+
+Suitable for controlling single or multiple Mirobot robotic arms, E4 robotic arms, slides, and conveyor belts. Note that a multifunctional controller must be used to use this SDK.
