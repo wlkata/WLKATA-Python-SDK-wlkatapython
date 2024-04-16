@@ -1,5 +1,5 @@
 '''
-VERSION:0.0.8
+VERSION:0.0.9
 '''
 import serial
 import time
@@ -480,7 +480,8 @@ class MS4220_UART:
         self.num = "G6 F" + str(self.num)
         self.sendMsg(self.num)
 
-
+#1.0初版
+#1.1根据wlkata_uart库进行更新，主要是舵机控制
 class Mirobot_Serial_GUI:
     def __init__(self):
         self.line = 1.0
@@ -696,13 +697,13 @@ class Mirobot_Serial_GUI:
             print("Error")
 
     def __descartes_OFF_def(self,event):
-        self.robot.gripper(True)
+        self.robot.gripper(1)
 
     def __descartes_ON_def(self,event):
-        self.robot.gripper(False)
+        self.robot.gripper(2)
 
     def __descartes_close_def(self,event):
-        self.robot.pwmWrite(0)
+        self.robot.gripper(0)
 
     def __gripper_close_def(self,event):
         self.robot.pump(0)
@@ -823,7 +824,7 @@ class Mirobot_Serial_GUI:
         # frame3: 气泵及夹爪的开关
         # frame4: 笛卡尔坐标的保存
         # frame5: Gcode文件的保存地址
-        self.root.title("Mirobot_Robot_Serial1.0")
+        self.root.title("Mirobot_Robot_Serial1.1")
         self.frame1=tk.Frame(self.root,width=350,height=100)
         self.frame1.pack(side="top",fill="both",expand="yes")
 
@@ -994,9 +995,9 @@ class Mirobot_Serial_GUI:
         self.root.mainloop()
 
 
-# if __name__ == '__main__':
-#     Mirobot_GUI = Mirobot_Serial_GUI()
-#     Mirobot_GUI.Mirobot_GUI()
+if __name__ == '__main__':
+    Mirobot_GUI = Mirobot_Serial_GUI()
+    Mirobot_GUI.Mirobot_GUI()
     # serial1=serial.Serial("COM3",115200)
     # mirobot = Wlkata_UART()
     # mirobot.init(serial1,-1)
