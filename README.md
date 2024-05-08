@@ -19,6 +19,13 @@ Wlkatapython is a Python package used to control products such as Mirabot roboti
 
 This component uses the G code protocol to communicate with the Mirobot over a serial connection. The official **G code instruction set** and **driver download** can be found at the [WLkata Download Page](https://www.wlkata.com/pages/download-center)
 
+## RS485 wiring diagram
+Add RS485 driver dual device image
+
+<div style="text-align: center;">
+  <img src="./img/img1.png" style="width: 50%;">
+</div>
+
 ## Example Usage
 
 ```python
