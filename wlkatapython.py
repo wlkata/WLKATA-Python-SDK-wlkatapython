@@ -24,12 +24,12 @@ class Wlkata_UART:
                                   "valve": -1,
                                   "mooe": -1}
 
-    # 串口对象+地址
+    
     def init(self, p, adr):
         self.pSerial = p
         self.address = adr
 
-    # 穿透指令
+    
     def sendMsg(self, string):
         if self.address != -1:
             self.string = "@" + str(self.address) + string + "\r\n"
@@ -38,7 +38,7 @@ class Wlkata_UART:
         self.pSerial.write(self.string.encode("utf-8"))
         time.sleep(0.1)
 
-    # 复位指令
+   
     def homing(self, mode=8):
         self.mode = mode
         if self.mode == 0:
@@ -66,7 +66,7 @@ class Wlkata_UART:
         else:
             self.sendMsg("$h")
 
-    # 离线文件指令，可设置是否循环执行
+   
     def runFile(self, fileName, num=False):
         self.num = num
         if self.num == True:
@@ -79,11 +79,11 @@ class Wlkata_UART:
             self.fileName = "o111" + str(fileName)
             self.sendMsg(self.fileName)
 
-    # 停止当前程序
+   
     def cancellation(self):
         self.sendMsg("o117")
 
-    # 舵机夹爪指令
+   
     def gripper(self, num):
         self.num = num
         if self.num == 0:
@@ -95,7 +95,7 @@ class Wlkata_UART:
         else:
             self.sendMsg("M3 S0")
 
-    # 气泵控制
+    
     def pump(self, num):
         self.num = num
         if self.num == 0:
@@ -107,16 +107,16 @@ class Wlkata_UART:
         else:
             self.sendMsg("M3 S0")
 
-    # PWM控制
+    
     def pwmWrite(self, num):
         self.num = "M3 S" + str(num)
         self.sendMsg(self.num)
 
-    # 初始位置
+    
     def zero(self):
         self.sendMsg("M21 G90 G00 X0 Y0 Z0 A0 B0 C00")
 
-    # 笛卡尔坐标控制
+  
     def writecoordinate(self, motion, position, x, y, z, a, b, c):
         self.motion = motion
         self.position = position
@@ -139,12 +139,12 @@ class Wlkata_UART:
         self.coordinate = "M20" + str(self.position) + str(self.motion) + self.coordinate
         self.sendMsg(self.coordinate)
 
-    # 速度设置
+   
     def speed(self, num):
         self.num = "F" + str(num)
         self.sendMsg(self.num)
 
-    # 角度设置
+   
     def writeangle(self, position, x, y, z, a, b, c):
         self.position = position
         self.coordinate = "X" + str(x) + "Y" + str(y) + "Z" + str(z) + "A" + str(a) + "B" + str(b) + "C" + str(c)
@@ -157,7 +157,7 @@ class Wlkata_UART:
         self.coordinate = "M21" + str(self.position) + "G00" + self.coordinate
         self.sendMsg(self.coordinate)
 
-    # 拓展轴控制
+   
     def writeexpand(self, motion, position, d):
         self.motion = motion
         self.position = position
@@ -178,30 +178,30 @@ class Wlkata_UART:
         self.coordinate = str(self.position) + str(self.motion) + self.coordinate
         self.sendMsg(self.coordinate)
 
-    # 重启设备
+   
     def restart(self):
         self.sendMsg("o100")
 
-    # 查询版本信息
+    
     def version(self):
-        self.lina = ""  # 初始化为字符串
-        self.lina1 = ""  # 初始化为字符串
+        self.lina = ""  
+        self.lina1 = ""  
 
         self.pSerial.flushInput()
         self.pSerial.flushOutput()
         self.sendMsg("$V")
 
-        timeout_cnt = 0  # 计数器，用于记录超时次数
+        timeout_cnt = 0  
 
         while True:
-            if timeout_cnt >= 5:  # 如果超时次数超过5次，返回失败消息
-                return "Query failed//查询失败"
+            if timeout_cnt >= 5:  
+                return "Query failed"
 
             self.lina = self.pSerial.readline().decode('utf-8').strip()
             self.lina1 = self.pSerial.readline().decode('utf-8').strip()
 
             if self.lina.startswith('EXbox') and self.lina1.startswith(
-                    'Mirobot'):  # 如果两行数据分别以 'EXbox' 和 'Mirobot' 开头，跳出循环并返回结果
+                    'Mirobot'):  
                 break
 
             timeout_cnt += 1
@@ -209,7 +209,7 @@ class Wlkata_UART:
 
         return self.lina, self.lina1
 
-    # 获取机械臂所有信息，输出字典形式
+  
     def getStatus(self):
         self.line = " "
         self.pSerial.flushInput()
@@ -227,7 +227,7 @@ class Wlkata_UART:
         time.sleep(0.1)
         return self.data
 
-    # 正则表达式
+   
     def __parse_response(self, line):
         self.pattern = r'<(\w+),Angle\(ABCDXYZ\):([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),Cartesian coordinate\(XYZ RxRyRz\):([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),Pump PWM:([\d.-]+),Valve PWM:([\d.-]+),Motion_MODE:([\d.-]+)>'
         match = re.match(self.pattern, line)
@@ -261,14 +261,14 @@ class Wlkata_UART:
             self.mirobot_state_all["mooe"] = match.group(17)
             return self.mirobot_state_all
         else:
-            return "parse error/解析错误"
+            return "parse error"
 
-    # 机械臂状态查询
+   
     def getState(self):
         self.getStatus()
         return self.mirobot_state_all["state"]
 
-    # 机械臂角度获取
+   
     def getAngle(self, num):
         self.num = num
         self.getStatus()
@@ -287,9 +287,9 @@ class Wlkata_UART:
         elif num == 7:
             return self.mirobot_state_all["angle_D"]
         else:
-            return "parameter error/参数错误"
+            return "parameter error"
 
-    # 机械臂坐标获取
+    
     def getcoordinate(self, num):
         self.num = num
         self.getStatus()
@@ -306,26 +306,26 @@ class Wlkata_UART:
         elif num == 6:
             return self.mirobot_state_all["coordinate_RZ"]
         else:
-            return "parameter error/参数错误"
+            return "parameter error"
 
-    # 末端状态查询
+   
     def getpump(self):
         self.getStatus()
         return self.mirobot_state_all["pump"]
 
-    # 状态查询/暂时没有用到
+   
     def getvalve(self):
         self.getStatus()
         return self.mirobot_state_all["valve"]
 
-    # 运动模式查询
+   
     def getmooe(self):
         self.getStatus()
         return self.mirobot_state_all["mooe"]
 
 
 class E4(Wlkata_UART):
-    # E4复位指令
+    
     def homing(self, mode=8):
         self.mode = mode
         if self.mode == 0:
@@ -349,11 +349,11 @@ class E4(Wlkata_UART):
         else:
             self.sendMsg("$h")
 
-    # E4初始位置
+  
     def zero(self):
         self.sendMsg("M21 G90 G00 X0 Y0 Z0 A0 ")
 
-    # E4笛卡尔坐标控制
+    
     def writecoordinate(self, motion, position, x, y, z, a):
         self.motion = motion
         self.position = position
@@ -376,7 +376,7 @@ class E4(Wlkata_UART):
         self.coordinate = "M20" + str(self.position) + str(self.motion) + self.coordinate
         self.sendMsg(self.coordinate)
 
-    # E4角度设置
+  
     def writeangle(self, position, x, y, z, a):
         self.position = position
         self.coordinate = "X" + str(x) + "Y" + str(y) + "Z" + str(z) + "A" + str(a)
@@ -389,7 +389,7 @@ class E4(Wlkata_UART):
         self.coordinate = "M21" + str(self.position) + "G00" + self.coordinate
         self.sendMsg(self.coordinate)
 
-    # E4机械臂角度获取
+   
     def getAngle(self, num):
         self.num = num
         self.getStatus()
@@ -404,9 +404,9 @@ class E4(Wlkata_UART):
         elif num == 7:
             return self.mirobot_state_all["angle_D"]
         else:
-            return "parameter error/参数错误"
+            return "parameter error"
 
-    # E4机械臂坐标获取
+   
     def getcoordinate(self, num):
         self.num = num
         self.getStatus()
@@ -419,28 +419,28 @@ class E4(Wlkata_UART):
         elif num == 4:
             return self.mirobot_state_all["coordinate_RX"]
         else:
-            return "parameter error/参数错误"
+            return "parameter error"
 
-    # E4查询版本信息
+   
     def version(self):
-        self.lina = ""  # 初始化为字符串
-        self.lina1 = ""  # 初始化为字符串
+        self.lina = ""  
+        self.lina1 = ""  
 
         self.pSerial.flushInput()
         self.pSerial.flushOutput()
         self.sendMsg("$V")
 
-        timeout_cnt = 0  # 计数器，用于记录超时次数
+        timeout_cnt = 0  
 
         while True:
-            if timeout_cnt >= 5:  # 如果超时次数超过5次，返回失败消息
-                return "查询失败"
+            if timeout_cnt >= 5:  
+                return "error"
 
             self.lina = self.pSerial.readline().decode('utf-8').strip()
             self.lina1 = self.pSerial.readline().decode('utf-8').strip()
 
             if self.lina.startswith('EXbox') and self.lina1.startswith(
-                    'E4'):  # 如果两行数据分别以 'EXbox' 和 'e4' 开头，跳出循环并返回结果
+                    'E4'): 
                 break
 
             timeout_cnt += 1
@@ -456,12 +456,12 @@ class MS4220_UART:
         self.address = None
         self.pSerial = None
 
-    # 串口对象+地址
+   
     def init(self, p, adr):
         self.pSerial = p
         self.address = adr
 
-    # 穿透指令
+   
     def sendMsg(self, string):
         if self.address != -1:
             self.string = "@" + str(self.address) + string + "\r\n"
@@ -470,7 +470,7 @@ class MS4220_UART:
         self.pSerial.write(self.string.encode("utf-8"))
         time.sleep(0.1)
 
-    # 运动设置
+   
     def speed(self, num):
         self.num = num
         if self.num > 100:
@@ -480,8 +480,7 @@ class MS4220_UART:
         self.num = "G6 F" + str(self.num)
         self.sendMsg(self.num)
 
-#1.0初版
-#1.1根据wlkata_uart库进行更新，主要是舵机控制
+
 class Mirobot_Serial_GUI:
     def __init__(self):
         self.line = 1.0
@@ -495,33 +494,33 @@ class Mirobot_Serial_GUI:
 
     def __State_binding_off(self):
         for i in range(7):
-            self.coordinate_tk[i]['state'] = 'disabled'#X/Y/Z/A/B/C输入框禁用
-            self. add_tk_button[i]['state'] = 'disabled'#加号按钮禁用
-            self.cut_tk_button[i]['state'] = 'disabled'#减号按钮禁用
-            self.add_tk_button[i].unbind("<Button-1>")#加号按钮取消绑定事件
-            self.cut_tk_button[i].unbind("<Button-1>")#减号按钮取消绑定事件
-        self.descartes_copy_button['state'] = 'disabled'#记录坐标按键
-        self.getpump_copy_button['state'] = 'disabled'#记录末端按键
-        self.restart_button['state'] = 'disabled'#重启按键
-        self.homing_button['state'] = 'disabled'#回零按键
-        self.zero_button['state'] = 'disabled'#初始位置按键
-        self.serial_tk_button2['state'] = 'disabled'#连接/断开按键
-        self.senmsg_tk_button['state'] = 'disabled'#发送按键
-        self.descartes_OFF['state'] = 'disabled'#舵机关闭按键
-        self.descartes_ON['state'] = 'disabled'#舵机打开按键
-        self.descartes_close['state'] = 'disabled'#舵机断开按键
-        self.gripper_close['state'] = 'disabled'#气泵关闭按键
-        self.gripper_ON['state'] = 'disabled'#气泵开启按键
-        self.gripper_OFF['state'] = 'disabled'#气泵关闭按键
-        self.senmsg_tk_entry['state'] = 'disabled'#透传输入框
-        self.coordinate_tk8['state'] = 'disabled'#步长输入框
-        self.add_tk_button8['state'] = 'disabled'#加号按钮
-        self.cut_tk_button8['state'] = 'disabled'#减号按钮
+            self.coordinate_tk[i]['state'] = 'disabled'#X/Y/Z/A/B/C
+            self. add_tk_button[i]['state'] = 'disabled'
+            self.cut_tk_button[i]['state'] = 'disabled'
+            self.add_tk_button[i].unbind("<Button-1>")
+            self.cut_tk_button[i].unbind("<Button-1>")
+        self.descartes_copy_button['state'] = 'disabled'
+        self.getpump_copy_button['state'] = 'disabled'
+        self.restart_button['state'] = 'disabled'
+        self.homing_button['state'] = 'disabled'
+        self.zero_button['state'] = 'disabled'
+        self.serial_tk_button2['state'] = 'disabled'
+        self.senmsg_tk_button['state'] = 'disabled'
+        self.descartes_OFF['state'] = 'disabled'
+        self.descartes_ON['state'] = 'disabled'
+        self.descartes_close['state'] = 'disabled'
+        self.gripper_close['state'] = 'disabled'
+        self.gripper_ON['state'] = 'disabled'
+        self.gripper_OFF['state'] = 'disabled'
+        self.senmsg_tk_entry['state'] = 'disabled'
+        self.coordinate_tk8['state'] = 'disabled'
+        self.add_tk_button8['state'] = 'disabled'
+        self.cut_tk_button8['state'] = 'disabled'
         self.axis7_copy_button['state'] = 'disabled'
 
         self.axis7_copy_button.unbind("<Button-1>")
-        self.add_tk_button8.unbind("<Button-1>")#加号按钮取消绑定事件
-        self.cut_tk_button8.unbind("<Button-1>")#减号按钮取消绑定事件
+        self.add_tk_button8.unbind("<Button-1>")
+        self.cut_tk_button8.unbind("<Button-1>")
         self.descartes_copy_button.unbind("<Button-1>")
         self.root.unbind("<F1>")
         self.root.unbind("<F2>")
@@ -541,26 +540,26 @@ class Mirobot_Serial_GUI:
 
     def __State_binding_on(self):
         for i in range(7):
-            self.coordinate_tk[i]['state'] = 'normal'#X/Y/Z/A/B/C输入框
-            self.add_tk_button[i]['state'] = 'normal'#加号按钮
-            self.cut_tk_button[i]['state'] = 'normal'#减号按钮
+            self.coordinate_tk[i]['state'] = 'normal'
+            self.add_tk_button[i]['state'] = 'normal'
+            self.cut_tk_button[i]['state'] = 'normal'
             self.add_tk_button[i].bind("<Button-1>", self.__coordinate_add_def)
             self.cut_tk_button[i].bind("<Button-1>", self.__coordinate_cut_def)
 
-        self.descartes_copy_button['state'] = 'normal'#记录坐标按键
+        self.descartes_copy_button['state'] = 'normal'
         self.getpump_copy_button['state'] = 'normal'
-        self.restart_button['state'] = 'normal'#重启按键
-        self.homing_button['state'] = 'normal'#回零按键
-        self.zero_button['state'] = 'normal'#初始位置按键
-        self.serial_tk_button2['state'] = 'normal'#连接/断开按键
-        self.senmsg_tk_button['state'] = 'normal'#发送按键
-        self.descartes_OFF['state'] = 'normal'#舵机关闭按键
-        self.descartes_ON['state'] = 'normal'#舵机打开按键
-        self.descartes_close['state'] = 'normal'#舵机断开按键
-        self.gripper_close['state'] = 'normal'#气泵关闭按键
-        self.gripper_ON['state'] = 'normal'#气泵开启按键
-        self.gripper_OFF['state'] = 'normal'#气泵关闭按键
-        self.senmsg_tk_entry['state'] = 'normal'#透传输入框
+        self.restart_button['state'] = 'normal'
+        self.homing_button['state'] = 'normal'
+        self.zero_button['state'] = 'normal'
+        self.serial_tk_button2['state'] = 'normal'
+        self.senmsg_tk_button['state'] = 'normal'
+        self.descartes_OFF['state'] = 'normal'
+        self.descartes_ON['state'] = 'normal'
+        self.descartes_close['state'] = 'normal'
+        self.gripper_close['state'] = 'normal'
+        self.gripper_ON['state'] = 'normal'
+        self.gripper_OFF['state'] = 'normal'
+        self.senmsg_tk_entry['state'] = 'normal'
         self.coordinate_tk8['state'] = 'normal'
         self.add_tk_button8['state'] = 'normal'
         self.cut_tk_button8['state'] = 'normal'
@@ -597,7 +596,7 @@ class Mirobot_Serial_GUI:
                 # print(port.device)
             self.serial_tk_entry['values']=self.available_ports
             # print(self.available_ports)
-    #用于点击连接后，串口号自动填充到下拉列表中且切换刷新波特率等状态
+    
     def __serial_connect_def(self,event):
         global ser,robot
         try:
@@ -726,7 +725,7 @@ class Mirobot_Serial_GUI:
         self.value = round(float(self.coordinate_tk[i].get()), 2)
         self.coordinate_tk[i].delete(0, tk.END)
         self.coordinate_tk[i].insert(0, self.value + round(float(self.coordinate_tk8.get()), 2))
-        #获取X/Y/X/RX/RY/RZ的值并加到一起
+       
         self.coordinate_X=round(float(self.coordinate_tk[0].get()), 2)
         self.coordinate_Y=round(float(self.coordinate_tk[1].get()), 2)
         self.coordinate_Z=round(float(self.coordinate_tk[2].get()), 2)
@@ -748,7 +747,7 @@ class Mirobot_Serial_GUI:
         self.value = round(float(self.coordinate_tk[i].get()), 2)
         self.coordinate_tk[i].delete(0, tk.END)
         self.coordinate_tk[i].insert(0, self.value - round(float(self.coordinate_tk8.get()), 2))
-        #获取X/Y/X/RX/RY/RZ的值并加到一起
+      
         self.coordinate_X=round(float(self.coordinate_tk[0].get()), 2)
         self.coordinate_Y=round(float(self.coordinate_tk[1].get()), 2)
         self.coordinate_Z=round(float(self.coordinate_tk[2].get()), 2)
@@ -806,7 +805,7 @@ class Mirobot_Serial_GUI:
     def __angle_copy_button_def(self,event):
         for i in range(6):
             self.coordinate_tk[i]['state'] = 'normal'
-    #写入txt_copy的值到txt_save目录下
+   
     def __txt_preserve_def(self,event):
         with open(str(self.txt_save.get()), 'w') as f:
             f.write(self.txt_copy.get("1.0",tk.END))
@@ -817,13 +816,9 @@ class Mirobot_Serial_GUI:
         self.root.bind("<F2>",self.__getpump_copy_button_def)
         self.root.bind("<F3>",self.__axis7_copy_button_def)
         self.root.resizable(False, False)
-        self.root.wm_attributes('-topmost', 1)#界面置于顶层
-        #########共分为5个区域###########################################################
-        # frame1: 显示串口号，刷新按钮，RS485地址
-        # frame2: 机械臂笛卡尔加减界面
-        # frame3: 气泵及夹爪的开关
-        # frame4: 笛卡尔坐标的保存
-        # frame5: Gcode文件的保存地址
+        self.root.wm_attributes('-topmost', 1)
+        ####################################################################
+       
         self.root.title("Mirobot_Robot_Serial1.1")
         self.frame1=tk.Frame(self.root,width=350,height=100)
         self.frame1.pack(side="top",fill="both",expand="yes")
@@ -839,7 +834,7 @@ class Mirobot_Serial_GUI:
 
         self.frame5=tk.Frame(self.root,width=350,height=100)
         self.frame5.pack(side="top",fill="both",expand="yes")
-        ###########################################################################frame1区域
+        ###########################################################################frame1
         self.serial_tk_lable = ttk.Label(self.frame1, text="Serial:")
         self.serial_tk_lable.pack(side="left", padx=2, pady=2)
 
@@ -872,7 +867,7 @@ class Mirobot_Serial_GUI:
 
         self.serial_tk_button2.bind("<Button-1>", self.__serial_connect_def)
 
-        #####################################################################frame2区域
+        #####################################################################frame2
         self.frame2_1=tk.Frame(self.frame2,width=100,height=200)
         self.frame2_1.pack(side="left",fill="both",expand="yes")
 
@@ -970,22 +965,22 @@ class Mirobot_Serial_GUI:
         #############################fram4
         self.txt_copy=tk.Text(self.frame4,height=10,width=62)
         self.txt_copy.pack(side="left")
-        # 创建一个 Scrollbar 部件，并将其放在 Text 部件的右侧
+       
         self.scrollbar = tk.Scrollbar(self.frame4, orient="vertical", command=self.txt_copy.yview)
         self.scrollbar.pack(side="left", fill="y")
-        # 将 Scrollbar 与 Text 部件关联
+     
         self.txt_copy.configure(yscrollcommand=self.scrollbar.set)
-        # 将 Text 部件添加到 frame4
+       
         self.txt_copy.pack(side="left")
 
         ########################frame5
         self.txt_save=tk.Entry(self.frame5,width=50)
-        # self.txt_save.insert(0, "C:\\Users\\Public\\Documents\\main.txt")  # 插入默认值
-        if os.name == 'nt':  # Windows系统
+        # self.txt_save.insert(0, "C:\\Users\\Public\\Documents\\main.txt") 
+        if os.name == 'nt':  # Windows
             self.default_path = os.path.expanduser('~\Documents')
-        else:  # Linux或macOS系统
+        else:  # Linux macOS
             self.default_path = "/opt"
-        self.txt_save.insert(0, os.path.join(self.default_path, 'main.txt'))  # 插入默认值
+        self.txt_save.insert(0, os.path.join(self.default_path, 'main.txt'))  
         self.txt_save.pack(side="left", padx=5, pady=5)
         self.txt_preserve=ttk.Button(self.frame5,text="Save",width=5)
         self.txt_preserve.pack(side="left", padx=5, pady=5)
