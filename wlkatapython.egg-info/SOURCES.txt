@@ -2,6 +2,16 @@ LICENSE
 README.md
 setup.py
 wlkatapython.py
+E4_robot/E4_UART.py
+E4_robot/__init__.py
+MS4220_robot/MS4220_UART.py
+MS4220_robot/__init__.py
+MT4_robot/MT4_UART.py
+MT4_robot/__init__.py
+Mirobot_robot/Mirobot_GUI.py
+Mirobot_robot/Mirobot_UART.py
+Mirobot_robot/__init__.py
+test/test.py
 wlkatapython.egg-info/PKG-INFO
 wlkatapython.egg-info/SOURCES.txt
 wlkatapython.egg-info/dependency_links.txt
