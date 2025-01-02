@@ -8,7 +8,7 @@
 
 ## IMPORTANT!!!
 
-**&nbsp;&nbsp;&nbsp;&nbsp;This is a package that uses Python to control products such as Mirobot robotic arms, E4 robotic arms, slides, conveyor belts, etc. This package mainly communicates through pyserial and G code protocols. Currently, it supports RS485 or UART communication. It should be noted that when using this package, a multi-functional controller is required, as some functions of the modified package use multi-functional controllers. If the mechanical arm is directly connected, some functions may not be effective.**
+**&nbsp;&nbsp;&nbsp;&nbsp;This is a package that uses Python to control products such as Mirobot robotic arms, E4 robotic arms, MT4 robotic arms,slides, conveyor belts, etc. This package mainly communicates through pyserial and G code protocols. Currently, it supports RS485 or UART communication. It should be noted that when using this package, a multi-functional controller is required, as some functions of the modified package use multi-functional controllers. If the mechanical arm is directly connected, some functions may not be effective.**
   
 
 ## Description
@@ -136,13 +136,13 @@ Mirobot_GUI=wlkatapython.Mirobot_Serial_GUI()
 Mirobot_GUI.Mirobot_GUI()
 ```
 
-## Mirobot Wiring diagram(RS485)
+## MT4 Wiring diagram(RS485)
 
 <div style="text-align: center;">
   <img src="./img/MT4_RS485.png" style="width: 50%;">
 </div>
 
-## Mirobot Example Usage(RS485)
+## MT4 Example Usage(RS485)
 
 ```python
 import wlkatapython
