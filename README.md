@@ -15,9 +15,9 @@
 
 **&nbsp;&nbsp;&nbsp;&nbsp;Wlkatapython is a Python package used to control products such as Mirobot robotic arms, E4 robotic arms, slides, conveyor belts, etc.**
 
-**&nbsp;&nbsp;&nbsp;&nbsp;This component uses the G code protocol to communicate with the Mirobot over a serial connection. The official**
+**&nbsp;&nbsp;&nbsp;&nbsp;This component uses the G code protocol to communicate with the Mirobot over a serial connection. **
 
-**&nbsp;&nbsp;&nbsp;&nbsp;G code instruction set** and **driver download** can be found at the [WLkata Download Page](https://www.wlkata.com/pages/download-center)
+**&nbsp;&nbsp;&nbsp;&nbsp;The official G code instruction set** and **driver download** can be found at the [WLkata Download Page](https://www.wlkata.com/pages/download-center)
 
 ## Mirobot Wiring diagram(RS485)
 
