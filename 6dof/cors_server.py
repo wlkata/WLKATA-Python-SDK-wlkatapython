@@ -11,7 +11,7 @@ class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         super().end_headers()
 
-PORT = 8837
+PORT = 8000
 with socketserver.TCPServer(("", PORT), CORSRequestHandler) as httpd:
     print("Serving on http://127.0.0.1:" + str(PORT))
     httpd.serve_forever()
