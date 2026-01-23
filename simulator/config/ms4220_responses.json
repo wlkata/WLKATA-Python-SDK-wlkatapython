@@ -1,0 +1,60 @@
+{
+  "_description": "Response configuration for MS4220 stepper motor controller",
+  "_version": "1.0.0",
+  "_model": "ms4220",
+  "_extends": null,
+  "_comment": "MS4220 has completely different command set, does not extend base",
+  
+  "commands": [
+    {
+      "name": "status_query",
+      "pattern": "^\\?$",
+      "handler": "handle_ms4220_status_query",
+      "response": null,
+      "description": "Query motor status"
+    },
+    {
+      "name": "speed_set",
+      "pattern": "^V(\\d+)$",
+      "handler": "handle_ms4220_speed",
+      "response": "ok",
+      "description": "Set motor speed"
+    },
+    {
+      "name": "position_absolute",
+      "pattern": "^P([-\\d]+)$",
+      "handler": "handle_ms4220_position",
+      "response": "ok",
+      "description": "Move to absolute position"
+    },
+    {
+      "name": "position_relative",
+      "pattern": "^R([-\\d]+)$",
+      "handler": "handle_ms4220_relative",
+      "response": "ok",
+      "description": "Move relative distance"
+    },
+    {
+      "name": "stop",
+      "pattern": "^S$",
+      "handler": null,
+      "response": "ok",
+      "description": "Stop motor"
+    },
+    {
+      "name": "home",
+      "pattern": "^H$",
+      "handler": "handle_ms4220_home",
+      "response": "ok",
+      "description": "Home motor"
+    }
+  ],
+  
+  "custom_commands": [],
+
+  "settings": {
+    "unknown_command_response": "error",
+    "command_delay_ms": 0,
+    "case_sensitive": false
+  }
+}

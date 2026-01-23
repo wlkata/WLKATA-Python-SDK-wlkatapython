@@ -1,0 +1,101 @@
+{
+  "_description": "Response configuration for Mirobot simulator (6-axis)",
+  "_version": "1.0.0",
+  "_model": "mirobot",
+  "_extends": "base",
+  
+  "commands": [
+    {
+      "_comment": "Mirobot uses 6-axis status query handler",
+      "name": "status_query",
+      "handler": "handle_mirobot_status_query"
+    },
+    {
+      "name": "expand_axis",
+      "pattern": "^G9[01]G0[01]D.*",
+      "handler": "handle_expand_axis",
+      "response": "ok",
+      "description": "7th axis (expand/rail) movement"
+    },
+    {
+      "name": "gpio_mode_query",
+      "pattern": "^o130\\?$",
+      "handler": "handle_gpio_mode_query",
+      "response": "ok",
+      "description": "Query GPIO mode"
+    },
+    {
+      "name": "gpio_mode_set",
+      "pattern": "^o130=(.*)$",
+      "handler": "handle_gpio_mode_set",
+      "response": "ok",
+      "description": "Set GPIO mode"
+    },
+    {
+      "name": "gpio_output_query",
+      "pattern": "^o131\\?$",
+      "handler": "handle_gpio_output_query",
+      "response": "ok",
+      "description": "Query GPIO output"
+    },
+    {
+      "name": "gpio_output_set",
+      "pattern": "^o131=(.*)$",
+      "handler": "handle_gpio_output_set",
+      "response": "ok",
+      "description": "Set GPIO output"
+    },
+    {
+      "name": "gpio_enable_query",
+      "pattern": "^o132\\?$",
+      "handler": "handle_gpio_enable_query",
+      "response": "ok",
+      "description": "Query GPIO enable"
+    },
+    {
+      "name": "gpio_enable_set",
+      "pattern": "^o132=(.*)$",
+      "handler": "handle_gpio_enable_set",
+      "response": "ok",
+      "description": "Set GPIO enable"
+    },
+    {
+      "name": "gpio_threshold_query",
+      "pattern": "^o133\\?$",
+      "handler": "handle_gpio_threshold_query",
+      "response": "ok",
+      "description": "Query GPIO threshold"
+    },
+    {
+      "name": "gpio_threshold_set",
+      "pattern": "^o133=(.*)$",
+      "handler": "handle_gpio_threshold_set",
+      "response": "ok",
+      "description": "Set GPIO threshold"
+    },
+    {
+      "name": "gpio_file_query",
+      "pattern": "^o134\\?$",
+      "handler": "handle_gpio_file_query",
+      "response": "ok",
+      "description": "Query GPIO trigger file"
+    },
+    {
+      "name": "gpio_file_set",
+      "pattern": "^o134=(.*)$",
+      "handler": "handle_gpio_file_set",
+      "response": "ok",
+      "description": "Set GPIO trigger file"
+    }
+  ],
+  
+  "custom_commands": [
+    {
+      "name": "set_led",
+      "pattern": "^LED (ON|OFF)$",
+      "handler": "handle_led",
+      "response": "ok",
+      "description": "Control LED state"
+    }
+  ]
+}

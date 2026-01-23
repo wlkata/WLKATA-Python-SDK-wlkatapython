@@ -1,0 +1,114 @@
+{
+  "_description": "Base response configuration shared by all robot models",
+  "_version": "1.0.0",
+  
+  "commands": [
+    {
+      "name": "status_query",
+      "pattern": "^\\?$",
+      "handler": "handle_status_query",
+      "response": null,
+      "description": "Query robot status"
+    },
+    {
+      "name": "version_query",
+      "pattern": "^\\$V$",
+      "handler": "handle_version_query",
+      "response": null,
+      "description": "Query firmware version"
+    },
+    {
+      "name": "homing",
+      "pattern": "^o105=\\d+$",
+      "handler": "handle_homing",
+      "response": "ok",
+      "description": "Homing command with mode"
+    },
+    {
+      "name": "homing_default",
+      "pattern": "^\\$h$",
+      "handler": "handle_homing",
+      "response": "ok",
+      "description": "Default homing command"
+    },
+    {
+      "name": "restart",
+      "pattern": "^o100$",
+      "handler": null,
+      "response": "ok",
+      "description": "Restart robot"
+    },
+    {
+      "name": "stop",
+      "pattern": "^o117$",
+      "handler": null,
+      "response": "ok",
+      "description": "Stop current movement"
+    },
+    {
+      "name": "pwm_control",
+      "pattern": "^M3 S(\\d+)$",
+      "handler": "handle_pwm_control",
+      "response": "ok",
+      "description": "PWM/gripper/pump control"
+    },
+    {
+      "name": "speed_control",
+      "pattern": "^F(\\d+)$",
+      "handler": "handle_speed_control",
+      "response": "ok",
+      "description": "Speed control (0-100)"
+    },
+    {
+      "name": "cartesian_movement",
+      "pattern": "^M20.*",
+      "handler": "handle_cartesian_movement",
+      "response": "ok",
+      "description": "Cartesian coordinate movement (M20)"
+    },
+    {
+      "name": "angle_movement",
+      "pattern": "^M21.*",
+      "handler": "handle_angle_movement",
+      "response": "ok",
+      "description": "Angle/joint movement (M21)"
+    },
+    {
+      "name": "run_file",
+      "pattern": "^o11[12].*$",
+      "handler": null,
+      "response": "ok",
+      "description": "Run offline file"
+    }
+  ],
+  
+  "custom_commands": [
+    {
+      "name": "custom_m_command",
+      "pattern": "^\\$M$",
+      "handler": null,
+      "response": "ok",
+      "description": "Custom $M command example"
+    },
+    {
+      "name": "get_position",
+      "pattern": "^\\$P$",
+      "handler": "handle_get_position",
+      "response": null,
+      "description": "Custom position query"
+    },
+    {
+      "name": "echo",
+      "pattern": "^ECHO (.*)$",
+      "handler": "handle_echo",
+      "response": null,
+      "description": "Echo back the message"
+    }
+  ],
+
+  "settings": {
+    "unknown_command_response": "error",
+    "command_delay_ms": 0,
+    "case_sensitive": false
+  }
+}

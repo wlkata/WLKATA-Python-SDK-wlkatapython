@@ -1,0 +1,42 @@
+{
+  "_description": "Response configuration for MT4 simulator (4-axis)",
+  "_version": "1.0.0",
+  "_model": "mt4",
+  "_extends": "base",
+  
+  "commands": [
+    {
+      "_comment": "MT4 uses 4-axis status query handler (same as E4)",
+      "name": "status_query",
+      "handler": "handle_e4_status_query"
+    },
+    {
+      "_comment": "MT4 uses 4-axis angle movement (same as E4)",
+      "name": "angle_movement",
+      "handler": "handle_e4_angle_movement"
+    },
+    {
+      "_comment": "MT4 uses 4-axis cartesian movement (same as E4)",
+      "name": "cartesian_movement",
+      "handler": "handle_e4_cartesian_movement"
+    },
+    {
+      "_comment": "MT4 uses 4-axis homing (same as E4)",
+      "name": "homing",
+      "handler": "handle_e4_homing"
+    },
+    {
+      "name": "homing_default",
+      "handler": "handle_e4_homing"
+    },
+    {
+      "_comment": "MT4 does not support expand axis - disabled",
+      "name": "expand_axis",
+      "pattern": "^G9[01]G0[01]D.*",
+      "enabled": false,
+      "description": "Not supported on MT4"
+    }
+  ],
+  
+  "custom_commands": []
+}

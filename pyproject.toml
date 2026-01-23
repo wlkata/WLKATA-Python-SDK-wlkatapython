@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wlkatapython"
+version = "0.1.0"
+description = "WLKATA-Mirobot/E4/MT4/MS4220 Multiple robotic arm control"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "DS"}
+]
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pyserial",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+]
+
+[tool.setuptools.packages.find]
+include = ["Mirobot_robot*", "E4_robot*", "MT4_robot*", "MS4220_robot*", "simulator*"]
+exclude = ["tests*", "test*", "build*", "dist*"]
+
+[tool.setuptools]
+py-modules = ["wlkatapython"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "hardware: marks tests that would need real hardware",
+]
