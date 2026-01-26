@@ -8,6 +8,8 @@ using the simulated hardware.
 import pytest
 import time
 
+pytestmark = pytest.mark.mirobot
+
 
 class TestMirobotInitialization:
     """Tests for Mirobot initialization and connection."""

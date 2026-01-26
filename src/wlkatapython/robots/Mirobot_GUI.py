@@ -1,4 +1,4 @@
-from Mirobot_robot.Mirobot_UART import Mirobot_UART
+from .Mirobot_UART import Mirobot_UART
 
 import serial
 import time

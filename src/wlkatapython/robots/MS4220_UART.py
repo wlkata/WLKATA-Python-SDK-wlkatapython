@@ -1,8 +1,8 @@
-import sys
-import os
-sys.path.append(os.path.abspath('Mirobot_robot'))
 
-from Mirobot_robot.Mirobot_UART import WLKATA_UART
+
+
+
+from .base import WLKATA_UART
 
 import time
 import serial

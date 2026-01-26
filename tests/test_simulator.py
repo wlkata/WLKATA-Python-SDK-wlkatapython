@@ -8,6 +8,8 @@ virtual serial ports and simulated hardware.
 import pytest
 import time
 import sys
+
+pytestmark = pytest.mark.simulator
 import serial
 
 

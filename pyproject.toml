@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "wlkatapython"
@@ -31,27 +31,11 @@ dev = [
     "pytest>=7.0",
     "pytest-cov",
 ]
-
-[tool.setuptools.packages.find]
-include = ["Mirobot_robot*", "E4_robot*", "MT4_robot*", "MS4220_robot*", "simulator*"]
-exclude = ["tests*", "test*", "build*", "dist*"]
-
-[tool.setuptools]
-py-modules = ["wlkatapython"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme",
 ]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "hardware: marks tests that would need real hardware",
-]
+
+
+
+

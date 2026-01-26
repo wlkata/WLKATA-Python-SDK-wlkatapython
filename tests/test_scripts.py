@@ -8,6 +8,8 @@ import serial
 import tempfile
 from pathlib import Path
 
+pytestmark = pytest.mark.scripts
+
 from scripts.gcode_recorder import GCodeRecorder
 
 

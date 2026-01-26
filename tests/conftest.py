@@ -47,7 +47,7 @@ def mirobot_serial(mirobot_simulator):
 @pytest.fixture
 def mirobot(mirobot_serial):
     """Create and initialize a Mirobot_UART instance."""
-    from Mirobot_robot.Mirobot_UART import Mirobot_UART
+    from wlkatapython.robots import Mirobot_UART
     robot = Mirobot_UART()
     robot.init(mirobot_serial, -1)
     return robot
@@ -56,7 +56,7 @@ def mirobot(mirobot_serial):
 @pytest.fixture
 def mirobot_with_sim(mirobot_simulator):
     """Create a Mirobot instance along with its simulator for state inspection."""
-    from Mirobot_robot.Mirobot_UART import Mirobot_UART
+    from wlkatapython.robots import Mirobot_UART
     ser = serial.Serial(mirobot_simulator.port_path, 115200, timeout=2.0)
     robot = Mirobot_UART()
     robot.init(ser, -1)
@@ -89,7 +89,7 @@ def e4_serial(e4_simulator):
 @pytest.fixture
 def e4(e4_serial):
     """Create and initialize an E4_UART instance."""
-    from E4_robot.E4_UART import E4_UART
+    from wlkatapython.robots import E4_UART
     robot = E4_UART()
     robot.init(e4_serial, -1)
     return robot
@@ -98,7 +98,7 @@ def e4(e4_serial):
 @pytest.fixture
 def e4_with_sim(e4_simulator):
     """Create an E4 instance along with its simulator for state inspection."""
-    from E4_robot.E4_UART import E4_UART
+    from wlkatapython.robots import E4_UART
     ser = serial.Serial(e4_simulator.port_path, 115200, timeout=2.0)
     robot = E4_UART()
     robot.init(ser, -1)
@@ -131,7 +131,7 @@ def mt4_serial(mt4_simulator):
 @pytest.fixture
 def mt4(mt4_serial):
     """Create and initialize an MT4_UART instance."""
-    from MT4_robot.MT4_UART import MT4_UART
+    from wlkatapython.robots import MT4_UART
     robot = MT4_UART()
     robot.init(mt4_serial, -1)
     return robot
@@ -140,7 +140,7 @@ def mt4(mt4_serial):
 @pytest.fixture
 def mt4_with_sim(mt4_simulator):
     """Create an MT4 instance along with its simulator for state inspection."""
-    from MT4_robot.MT4_UART import MT4_UART
+    from wlkatapython.robots import MT4_UART
     ser = serial.Serial(mt4_simulator.port_path, 115200, timeout=2.0)
     robot = MT4_UART()
     robot.init(ser, -1)
@@ -173,7 +173,7 @@ def ms4220_serial(ms4220_simulator):
 @pytest.fixture
 def ms4220(ms4220_serial):
     """Create and initialize an MS4220_UART instance."""
-    from MS4220_robot.MS4220_UART import MS4220_UART
+    from wlkatapython.robots import MS4220_UART
     robot = MS4220_UART()
     robot.init(ms4220_serial, 10)
     return robot
@@ -182,7 +182,7 @@ def ms4220(ms4220_serial):
 @pytest.fixture
 def ms4220_with_sim(ms4220_simulator):
     """Create an MS4220 instance along with its simulator for state inspection."""
-    from MS4220_robot.MS4220_UART import MS4220_UART
+    from wlkatapython.robots import MS4220_UART
     ser = serial.Serial(ms4220_simulator.port_path, 38400, timeout=2.0)
     robot = MS4220_UART()
     robot.init(ms4220_serial, 10)
@@ -207,7 +207,7 @@ def mirobot_rs485_simulator():
 @pytest.fixture
 def mirobot_rs485(mirobot_rs485_simulator):
     """Create a Mirobot instance with RS485 addressing."""
-    from Mirobot_robot.Mirobot_UART import Mirobot_UART
+    from wlkatapython.robots import Mirobot_UART
     ser = serial.Serial(mirobot_rs485_simulator.port_path, 115200, timeout=2.0)
     robot = Mirobot_UART()
     robot.init(ser, 5)  # RS485 address 5

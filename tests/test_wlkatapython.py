@@ -9,6 +9,8 @@ import pytest
 import time
 import serial
 
+pytestmark = pytest.mark.wlkatapython
+
 
 class TestModuleImports:
     """Tests for module imports and exports."""
@@ -215,31 +217,31 @@ class TestClassInheritance:
     def test_mirobot_inheritance(self):
         """Test Mirobot_UART inheritance chain."""
         import wlkatapython
-        from Mirobot_robot.Mirobot_UART import WLKATA_UART
+        from wlkatapython.robots import WLKATA_UART
         
         robot = wlkatapython.Mirobot_UART()
         assert isinstance(robot, WLKATA_UART)
     
     def test_e4_inheritance(self):
-        """Test E4_UART inherits from Mirobot_UART."""
+        """Test E4_UART inherits from WLKATA_UART."""
         import wlkatapython
-        from Mirobot_robot.Mirobot_UART import Mirobot_UART as BaseMirobot
+        from wlkatapython.robots import WLKATA_UART as Base
         
         robot = wlkatapython.E4_UART()
-        assert isinstance(robot, BaseMirobot)
+        assert isinstance(robot, Base)
     
     def test_mt4_inheritance(self):
-        """Test MT4_UART inherits from Mirobot_UART."""
+        """Test MT4_UART inherits from WLKATA_UART."""
         import wlkatapython
-        from Mirobot_robot.Mirobot_UART import Mirobot_UART as BaseMirobot
+        from wlkatapython.robots import WLKATA_UART as Base
         
         robot = wlkatapython.MT4_UART()
-        assert isinstance(robot, BaseMirobot)
+        assert isinstance(robot, Base)
     
     def test_ms4220_inheritance(self):
         """Test MS4220_UART inherits from WLKATA_UART."""
         import wlkatapython
-        from Mirobot_robot.Mirobot_UART import WLKATA_UART
+        from wlkatapython.robots import WLKATA_UART
         
         robot = wlkatapython.MS4220_UART()
         assert isinstance(robot, WLKATA_UART)

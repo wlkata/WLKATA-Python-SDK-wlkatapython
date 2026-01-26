@@ -8,6 +8,8 @@ and separate handler functions.
 import pytest
 import time
 import json
+
+pytestmark = pytest.mark.simulator
 import tempfile
 import serial
 from pathlib import Path

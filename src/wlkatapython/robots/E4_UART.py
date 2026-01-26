@@ -1,15 +1,19 @@
-import sys
-import os
-sys.path.append(os.path.abspath('Mirobot_robot'))
 
-from Mirobot_robot.Mirobot_UART import Mirobot_UART
+
+
+
+from .base import WLKATA_UART
 import serial
-import time
 
 #E4串口控制类
 #E4 serial port control class
 
-class MT4_UART(Mirobot_UART):
+class E4_UART(WLKATA_UART):
+    """Control class for WLKATA E4 4-axis robotic arm.
+
+    The E4 is a 4-axis SCARA-style robotic arm with X, Y, Z, and A (rotation) axes.
+    This class provides specific methods for E4 robot control.
+    """
     # E4复位指令
     # E4 homing command
     def homing(self, mode=8):
@@ -133,7 +137,7 @@ class MT4_UART(Mirobot_UART):
             self.lina1 = self.pSerial.readline().decode('utf-8').strip()
 
             if self.lina.startswith('EXbox') and self.lina1.startswith(
-                    'E4'):  # 如果两行数据分别以 'EXbox' 和 'e4' 开头，跳出循环并返回结果 #If the two lines of data start with 'EXbox' and 'e4', jump out of the loop and return the result  
+                    'E4'):  # 如果两行数据分别以 'EXbox' 和 'e4' 开头，跳出循环并返回结果#If the two lines of data start with 'EXbox' and 'e4', jump out of the loop and return the result  
                 break
 
             timeout_cnt += 1
@@ -142,7 +146,6 @@ class MT4_UART(Mirobot_UART):
         return self.lina, self.lina1
 
 if __name__ == "__main__":
-    mt4 = MT4_UART()
-    mt4.init(serial.Serial('COM13', 115200), -1)
-    mt4.homing()
-
+    e4 = E4_UART()
+    e4.init(serial.Serial('COM13', 115200), 1)
+    e4.homing()

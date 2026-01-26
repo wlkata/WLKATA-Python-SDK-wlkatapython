@@ -8,6 +8,8 @@ This module tests all functionality of the E4 robot arm control class
 import pytest
 import time
 
+pytestmark = pytest.mark.e4
+
 
 class TestE4Initialization:
     """Tests for E4 initialization."""

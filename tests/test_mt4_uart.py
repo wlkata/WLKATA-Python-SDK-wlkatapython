@@ -8,6 +8,8 @@ This module tests all functionality of the MT4 robot arm control class
 import pytest
 import time
 
+pytestmark = pytest.mark.mt4
+
 
 class TestMT4Initialization:
     """Tests for MT4 initialization."""

@@ -13,18 +13,24 @@
     MS4220_UART是MS4220步进电机控制器的类， 继承自wlkata_UART。
 
 """
-import sys
-sys.path.append('Mirobot_robot')
-sys.path.append('E4_robot')
-sys.path.append('MT4_robot')
-sys.path.append('MS4220_robot')
+from .robots import Mirobot_UART, E4_UART, MT4_UART, MS4220_UART
+try:
+    from .robots.Mirobot_GUI import Mirobot_Serial_GUI
+except ImportError:
+    # Mirobot_Serial_GUI not available
+    Mirobot_Serial_GUI = object
 
-from Mirobot_robot.Mirobot_UART import Mirobot_UART
-from E4_robot.E4_UART import E4_UART  
-from MT4_robot.MT4_UART import MT4_UART
-from MS4220_robot.MS4220_UART import MS4220_UART
 
-from Mirobot_robot.Mirobot_GUI import Mirobot_Serial_GUI 
+
+
+
+
+
+  
+
+
+
+ 
 import serial
 
 class Wlkata_UART(Mirobot_UART):
