@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Blockly Desktop App</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+    }
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    #toolbar {
+      background: #f0f0f0;
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 8px 16px;
+      cursor: pointer;
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #1976D2;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    #blocklyDiv {
+      flex: 1;
+    }
+    #output-panel {
+      width: 350px;
+      border-left: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      background: #fafafa;
+    }
+    #output-header {
+      padding: 10px;
+      background: #e0e0e0;
+      font-weight: bold;
+      border-bottom: 1px solid #ccc;
+    }
+    #code-preview {
+      height: 150px;
+      overflow: auto;
+      padding: 10px;
+      background: #263238;
+      color: #aed581;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    #output-content {
+      flex: 1;
+      overflow: auto;
+      padding: 10px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+    }
+    .output-line {
+      margin: 2px 0;
+      padding: 4px;
+      border-radius: 3px;
+    }
+    .output-stdout {
+      color: #333;
+    }
+    .output-stderr {
+      color: #d32f2f;
+      background: #ffebee;
+    }
+    .output-result {
+      color: #1976D2;
+      background: #e3f2fd;
+    }
+    .output-error {
+      color: #d32f2f;
+      background: #ffebee;
+      padding: 8px;
+      margin: 4px 0;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="toolbar">
+      <button id="runBtn" onclick="runCode()">▶ Run Code</button>
+      <button id="clearBtn" onclick="clearWorkspace()">Clear Workspace</button>
+      <button id="exportBtn" onclick="exportBlocks()">Export Blocks</button>
+      <button id="importBtn" onclick="importBlocks()">Import Blocks</button>
+    </div>
+    <div id="main-container">
+      <div id="blocklyDiv"></div>
+      <div id="output-panel">
+        <div id="output-header">Generated Python Code</div>
+        <div id="code-preview"></div>
+        <div id="output-header">Output</div>
+        <div id="output-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Blockly -->
+  <script src="./node_modules/blockly/blockly_compressed.js"></script>
+  <script src="./node_modules/blockly/blocks_compressed.js"></script>
+  <script src="./node_modules/blockly/python_compressed.js"></script>
+  <script src="./node_modules/blockly/msg/en.js"></script>
+  
+  <script src="renderer.js"></script>
+</body>
+</html>

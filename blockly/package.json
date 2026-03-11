@@ -1,0 +1,66 @@
+{
+  "name": "blockly-desktop-app",
+  "version": "1.0.0",
+  "description": "A Blockly desktop application with Python backend execution",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder --win --mac",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "blockly",
+    "electron",
+    "python",
+    "visual-programming"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "blockly": "^12.4.1",
+    "electron": "^40.8.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.example.blocklyapp",
+    "productName": "Blockly Desktop App",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "renderer.js",
+      "server.py",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server.py",
+        "to": "server.py"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.education",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
+      ]
+    }
+  }
+}
