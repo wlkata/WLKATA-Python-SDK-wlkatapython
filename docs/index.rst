@@ -7,7 +7,6 @@ The WLKATA Python SDK provides control interfaces for various WLKATA robotic arm
    :maxdepth: 2
    :caption: Contents:
 
-   modules
    api
 
 Indices and tables

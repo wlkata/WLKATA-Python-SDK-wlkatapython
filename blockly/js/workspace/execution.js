@@ -10,7 +10,7 @@
 async function runCode() {
   const runBtn = document.getElementById('runBtn');
   const outputContent = document.getElementById('output-content');
-  const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5000';
+  const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5080';
 
   // Disable button during execution
   runBtn.disabled = true;

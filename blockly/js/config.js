@@ -6,7 +6,7 @@
 let workspace;
 
 // Server URL - use 127.0.0.1 to avoid DNS resolution issues
-const SERVER_URL = 'http://127.0.0.1:5000';
+const SERVER_URL = 'http://127.0.0.1:5080';
 
 // Cache for function signatures to avoid repeated API calls
 const functionCache = new Map();

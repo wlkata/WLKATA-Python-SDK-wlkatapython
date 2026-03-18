@@ -153,8 +153,8 @@ class TestE4Status:
         """Test E4 angle retrieval with invalid axis."""
         robot, sim = e4_with_sim
         
-        result = robot.getAngle(5)  # Invalid for E4
-        assert "error" in result.lower()
+        with pytest.raises(Exception, match="parameter error"):
+            robot.getAngle(5)  # Invalid for E4
     
     def test_get_coordinate(self, e4_with_sim):
         """Test E4 coordinate retrieval (4 coordinates)."""
@@ -176,8 +176,8 @@ class TestE4Status:
         """Test E4 coordinate retrieval with invalid coordinate."""
         robot, sim = e4_with_sim
         
-        result = robot.getcoordinate(5)  # Invalid for E4
-        assert "error" in result.lower()
+        with pytest.raises(Exception, match="parameter error"):
+            robot.getcoordinate(5)  # Invalid for E4
     
     def test_version(self, e4_with_sim):
         """Test E4 version query."""

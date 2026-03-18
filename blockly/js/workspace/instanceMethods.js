@@ -26,7 +26,7 @@ async function updateInstanceMethodsForBlock(block) {
 
   block.updateTimer_ = setTimeout(async () => {
     const workspace = getWorkspace ? getWorkspace() : null;
-    const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5000';
+    const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5080';
 
     if (!workspace) return;
 
@@ -82,7 +82,7 @@ async function updateInstanceMethodInfo(block, methodName) {
   const cleanMethod = methodName.includes('.') ? methodName.split('.').pop() : methodName;
 
   const workspace = getWorkspace ? getWorkspace() : null;
-  const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5000';
+  const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5080';
 
   if (!workspace) return;
 

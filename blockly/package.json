@@ -21,8 +21,10 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "dependencies": {
+    "blockly": "^12.4.1"
+  },
   "devDependencies": {
-    "blockly": "^12.4.1",
     "electron": "^40.8.0",
     "electron-builder": "^26.0.12"
   },
@@ -33,16 +35,24 @@
       "output": "dist"
     },
     "files": [
-      "main.js",
+      "js/**/*",
+      "node_modules/**/*",
+      "server/**/*",
       "index.html",
-      "renderer.js",
-      "server.py",
-      "node_modules/**/*"
+      "main.js",
+      "server.py"
     ],
     "extraResources": [
       {
         "from": "server.py",
         "to": "server.py"
+      },
+      {
+        "from": "server",
+        "to": "server",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "mac": {
@@ -52,6 +62,15 @@
           "target": "dmg",
           "arch": ["x64", "arm64"]
         }
+      ],
+      "extraResources": [
+        {
+          "from": "resources/python-mac",
+          "to": "python",
+          "filter": [
+            "**/*"
+          ]
+        }
       ]
     },
     "win": {
@@ -59,6 +78,15 @@
         {
           "target": "nsis",
           "arch": ["x64", "ia32"]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "resources/python-x86",
+          "to": "python",
+          "filter": [
+            "**/*"
+          ]
         }
       ]
     }

@@ -14,11 +14,6 @@ Main Module
 Robots Module
 -------------
 
-.. automodule:: wlkatapython.robots
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Base Classes
 ~~~~~~~~~~~~
 

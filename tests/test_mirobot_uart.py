@@ -401,14 +401,14 @@ class TestMirobotStatus:
         
         assert int(pump_value) == 500
     
-    def test_get_mooe(self, mirobot_with_sim):
+    def test_get_mode(self, mirobot_with_sim):
         """Test getting motion mode."""
         robot, sim = mirobot_with_sim
         
         sim.set_state(motion_mode=1)
-        mooe = robot.getmooe()
+        mode = robot.getmode()
         
-        assert int(mooe) == 1
+        assert int(mode) == 1
 
 
 class TestMirobotGPIO:

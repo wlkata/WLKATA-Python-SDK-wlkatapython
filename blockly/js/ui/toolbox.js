@@ -179,7 +179,7 @@ async function syncToolboxWithImports() {
 async function loadModuleInfo(moduleName) {
   const moduleFunctionCache = getModuleFunctionCache ? getModuleFunctionCache() : new Map();
   const importedModules = getImportedModules ? getImportedModules() : new Set();
-  const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5000';
+  const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5080';
 
   if (moduleFunctionCache.has(moduleName)) {
     importedModules.add(moduleName);

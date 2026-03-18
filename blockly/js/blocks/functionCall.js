@@ -81,7 +81,7 @@ function initFunctionCallBlock() {
       }
 
       const functionCache = getFunctionCache ? getFunctionCache() : new Map();
-      const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5000';
+      const serverUrl = getServerUrl ? getServerUrl() : 'http://127.0.0.1:5080';
 
       // Check cache first
       if (functionCache.has(funcName)) {
