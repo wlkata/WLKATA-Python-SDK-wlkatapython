@@ -1,3 +1,7 @@
+
+
+
+
 from .base import WLKATA_UART
 
 import time
@@ -6,23 +10,14 @@ import serial
 #MS4220步进电机
 #MS4220 stepper motor
 
-
 class MS4220_UART(WLKATA_UART):
-    """Control class for WLKATA MS4220 stepper motor controller.
-
-    The MS4220 is a single-axis stepper motor controller, not a multi-axis arm.
-    It inherits communication primitives from WLKATA_UART but overrides sendMsg
-    and does not use most arm-specific methods.
-    """
-    axis_count = 4
-    _version_prefix = "MS4220"
-    _homing_fallback = "$h"
-
     def __init__(self):
         super().__init__()
+        self.num = None
+        self.string = None
         self.address = None
         self.pSerial = None
-
+        
 
     #Save serial object and MS4220 address (RS458 address range: 0-255)
     # 保存串口对象和MS4220地址（RS458地址范围：0-255）

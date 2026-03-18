@@ -5,8 +5,7 @@
  * Downloads a standalone, relocatable Python distribution suitable for
  * bundling with the Electron app.
  *
- * For Windows: Uses the official python.org embeddable package (already provided).
- * For macOS:   Downloads from python-build-standalone (indygreg) project.
+ * Downloads from astral-sh/python-build-standalone for macOS and Windows.
  *
  * Usage:
  *   node scripts/download-python.js                  # auto-detect platform
@@ -22,25 +21,28 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 // Configuration
-const PYTHON_VERSION = '3.14.3';
-
-// python-build-standalone release info
-// Using cpython-3.13 as 3.14 may not be available yet in standalone builds
-// Update this URL when a 3.14 standalone build becomes available
-const STANDALONE_VERSION = '20250317';
-const STANDALONE_PYTHON = '3.13.2';
+// python-build-standalone release info (astral-sh fork)
+const STANDALONE_VERSION = '20260310';
+const STANDALONE_PYTHON = '3.12.13';
+const STANDALONE_BASE = 'https://github.com/astral-sh/python-build-standalone/releases/download';
 
 const DOWNLOADS = {
   'macos-arm64': {
-    url: `https://github.com/indygreg/python-build-standalone/releases/download/${STANDALONE_VERSION}/cpython-${STANDALONE_PYTHON}+${STANDALONE_VERSION}-aarch64-apple-darwin-install_only_stripped.tar.gz`,
+    url: `${STANDALONE_BASE}/${STANDALONE_VERSION}/cpython-${STANDALONE_PYTHON}+${STANDALONE_VERSION}-aarch64-apple-darwin-install_only.tar.gz`,
     extractDir: 'python',
-    targetDir: `python-3.14.3-macos-arm64`,
+    targetDir: `python-${STANDALONE_PYTHON}-macos-arm64`,
     type: 'tar.gz',
   },
   'macos-x64': {
-    url: `https://github.com/indygreg/python-build-standalone/releases/download/${STANDALONE_VERSION}/cpython-${STANDALONE_PYTHON}+${STANDALONE_VERSION}-x86_64-apple-darwin-install_only_stripped.tar.gz`,
+    url: `${STANDALONE_BASE}/${STANDALONE_VERSION}/cpython-${STANDALONE_PYTHON}+${STANDALONE_VERSION}-x86_64-apple-darwin-install_only.tar.gz`,
     extractDir: 'python',
-    targetDir: `python-3.14.3-macos-x64`,
+    targetDir: `python-${STANDALONE_PYTHON}-macos-x64`,
+    type: 'tar.gz',
+  },
+  'windows-x64': {
+    url: `${STANDALONE_BASE}/${STANDALONE_VERSION}/cpython-${STANDALONE_PYTHON}+${STANDALONE_VERSION}-x86_64-pc-windows-msvc-install_only.tar.gz`,
+    extractDir: 'python',
+    targetDir: `python-${STANDALONE_PYTHON}-windows-x64`,
     type: 'tar.gz',
   },
 };
@@ -213,8 +215,7 @@ async function main() {
       const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
       await setupPlatform(`macos-${arch}`);
     } else if (process.platform === 'win32') {
-      console.log('  Windows embedded Python should already be in dist/');
-      console.log('  Download from: https://www.python.org/downloads/');
+      await setupPlatform('windows-x64');
     } else {
       console.log(`  Platform ${process.platform} not supported for embedded Python.`);
     }
@@ -222,12 +223,11 @@ async function main() {
     await setupPlatform('macos-arm64');
     await setupPlatform('macos-x64');
   } else if (platform === 'win' || platform === 'windows') {
-    console.log('  Windows embedded Python should already be in dist/');
-    console.log('  Download from: https://www.python.org/downloads/');
+    await setupPlatform('windows-x64');
   } else if (platform === 'all') {
     await setupPlatform('macos-arm64');
     await setupPlatform('macos-x64');
-    console.log('\n  Windows embedded Python should already be in dist/');
+    await setupPlatform('windows-x64');
   } else {
     console.error(`  Unknown platform: ${platform}`);
     process.exit(1);

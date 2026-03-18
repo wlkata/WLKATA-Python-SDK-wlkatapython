@@ -3,11 +3,13 @@ name: CI/CD
 on:
   push:
     branches: [ main, dev ]
+    tags: ['v*']
   pull_request:
     branches: [ main, dev ]
 
 jobs:
   test:
+    if: github.event_name == 'pull_request' || github.ref_type == 'branch'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -35,9 +37,8 @@ jobs:
         uv run pytest
 
   build:
-    needs: test
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
     - uses: actions/checkout@v4
@@ -60,19 +61,104 @@ jobs:
         name: dist
         path: dist/
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+  build-blockly:
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+            python_url: https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.12.13+20260310-aarch64-apple-darwin-install_only.tar.gz
+            pip: resources/python/bin/pip3
+            build_cmd: npm run build:mac -- --arm64
+            artifact_name: blockly-mac-arm64
+
+          - os: macos-latest
+            arch: x64
+            python_url: https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.12.13+20260310-x86_64-apple-darwin-install_only.tar.gz
+            pip: resources/python/bin/pip3
+            build_cmd: npm run build:mac -- --x64
+            artifact_name: blockly-mac-x64
+
+          - os: windows-latest
+            arch: x64
+            python_url: https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.12.13+20260310-x86_64-pc-windows-msvc-install_only.tar.gz
+            pip: resources/python/python.exe -m pip
+            build_cmd: npm run build:win -- --x64
+            artifact_name: blockly-win-x64
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Download build artifacts
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 23
+
+    - name: Download standalone Python
+      working-directory: blockly
+      shell: bash
+      run: |
+        mkdir -p resources
+        curl -L "${{ matrix.python_url }}" -o python.tar.gz
+        tar -xzf python.tar.gz -C resources
+        rm python.tar.gz
+        echo "Python extracted to resources/python"
+        ls resources/python
+
+    - name: Install wlkatapython SDK into embedded Python
+      working-directory: blockly
+      shell: bash
+      run: |
+        ${{ matrix.pip }} install ..
+
+    - name: Install flask into embedded Python
+      working-directory: blockly
+      shell: bash
+      run: |
+        ${{ matrix.pip }} install flask flask-cors
+
+    - name: Install Node.js dependencies
+      working-directory: blockly
+      run: npm ci || npm install
+
+    - name: Build Electron app
+      working-directory: blockly
+      run: ${{ matrix.build_cmd }}
+
+    - name: Upload blockly artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          blockly/dist/*.dmg
+          blockly/dist/*.exe
+          blockly/dist/*.zip
+
+  release:
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    needs: [build, build-blockly]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
-        name: dist
-        path: dist/
+        path: release-assets/
+
+    - name: Flatten release assets
+      run: |
+        mkdir -p dist
+        find release-assets/ -type f | while read f; do
+          cp "$f" dist/
+        done
+        echo "Release contents:"
+        ls -la dist/
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2

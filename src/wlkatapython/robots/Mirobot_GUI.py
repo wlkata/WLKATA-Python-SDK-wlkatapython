@@ -521,7 +521,7 @@ class Mirobot_Serial_GUI:
         self.txt_save = tk.Entry(self.frame5, width=50)
 
         if os.name == 'nt':  # Windows
-            self.default_path = os.path.expanduser(r'~\Documents')
+            self.default_path = os.path.expanduser('~\Documents')
         else:  # Linux && macOS
             self.default_path = "/opt"
         self.txt_save.insert(0, os.path.join(self.default_path, 'main.txt'))

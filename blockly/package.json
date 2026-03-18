@@ -30,7 +30,7 @@
   },
   "build": {
     "appId": "com.example.blocklyapp",
-    "productName": "Blockly Desktop App",
+    "productName": "WLKATA Blockly",
     "directories": {
       "output": "dist"
     },
@@ -63,9 +63,10 @@
           "arch": ["x64", "arm64"]
         }
       ],
+      "artifactName": "WLKATA-Blockly-Mac-${arch}.${ext}",
       "extraResources": [
         {
-          "from": "resources/python-mac",
+          "from": "resources/python",
           "to": "python",
           "filter": [
             "**/*"
@@ -77,12 +78,13 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": ["x64"]
         }
       ],
+      "artifactName": "WLKATA-Blockly-Win-${arch}.${ext}",
       "extraResources": [
         {
-          "from": "resources/python-x86",
+          "from": "resources/python",
           "to": "python",
           "filter": [
             "**/*"

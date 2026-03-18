@@ -5,8 +5,7 @@
 # --- Embedded Python runtimes (downloaded via scripts/download-python.js) ---
 # These are large (~216 MB), platform-specific, binary build artifacts.
 # They should be downloaded on demand, never committed to git.
-resources/python-mac/
-resources/python-x86/
+resources/python/
 
 # --- Node / Electron ---
 node_modules/

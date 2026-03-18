@@ -1,96 +1,22 @@
 """Base class for WLKATA robotic arm and controller communication.
 
-This module defines :class:`WLKATA_UART`, the abstract base class that every
-WLKATA robot driver inherits from.  It handles UART / RS485 serial transport,
-G-code command formatting, status parsing, GPIO helpers, and axis-aware
-motion commands.
+This class provides the core functionality for communicating with WLKATA robotic
+devices via UART or RS485 interfaces. It includes methods for sending commands,
+receiving responses, and basic robot control operations.
 
-Subclasses **must** define three class-level attributes:
-
-* ``axis_count``  (``int``)  — number of motion axes (``4`` or ``6``).
-* ``_version_prefix``  (``str``)  — expected prefix of the firmware version
-  response (e.g. ``"Mirobot"``, ``"E4"``).
-* ``_homing_fallback``  (``str``)  — command sent when the requested homing
-  mode is not in the valid set (e.g. ``"o105=8"``, ``"$h"``).
+All WLKATA robot classes inherit from this base class.
 """
 
-from __future__ import annotations
-
-import re
-import time
-from abc import ABC
-from typing import Any, Callable, Union
-
 import serial
+import time
+import re
 
 
-class WLKATA_UART(ABC):
-    """Abstract base class for WLKATA robot UART/RS485 communication.
-
-    Subclasses must set ``axis_count``, ``_version_prefix``, and
-    ``_homing_fallback`` as class attributes.  Failing to do so will raise
-    ``TypeError`` at instantiation.
-    """
-
-    # --- mandatory class attributes (enforced by __init_subclass__) ----------
-
-    axis_count: int              # 4 or 6
-    _version_prefix: str         # e.g. "Mirobot", "E4"
-    _homing_fallback: str        # e.g. "o105=8", "$h"
-
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        """Ensure every concrete subclass declares required class attributes.
-
-        Raises:
-            TypeError: If a subclass is missing ``axis_count``,
-                ``_version_prefix``, or ``_homing_fallback``.
-        """
-        super().__init_subclass__(**kwargs)
-        for attr in ("axis_count", "_version_prefix", "_homing_fallback"):
-            if not hasattr(cls, attr):
-                raise TypeError(
-                    f"Subclass {cls.__name__} must define class attribute '{attr}'"
-                )
-
-    # --- axis-dependent lookup tables (built once per subclass) --------------
-
-    # Angle map: axis number → state-dict key
-    _ANGLE_MAP_6 = {
-        1: "angle_X", 2: "angle_Y", 3: "angle_Z",
-        4: "angle_A", 5: "angle_B", 6: "angle_C", 7: "angle_D",
-    }
-    _ANGLE_MAP_4 = {
-        1: "angle_X", 2: "angle_Y", 3: "angle_Z",
-        4: "angle_A", 7: "angle_D",
-    }
-
-    # Coordinate map: axis number → state-dict key
-    _COORD_MAP_6 = {
-        1: "coordinate_X", 2: "coordinate_Y", 3: "coordinate_Z",
-        4: "coordinate_RX", 5: "coordinate_RY", 6: "coordinate_RZ",
-    }
-    _COORD_MAP_4 = {
-        1: "coordinate_X", 2: "coordinate_Y", 3: "coordinate_Z",
-        4: "coordinate_RX",
-    }
-
-    # Homing: valid modes per axis count
-    _VALID_HOMING_MODES_6 = set(range(0, 11))          # 0-10
-    _VALID_HOMING_MODES_4 = {0, 1, 2, 3, 4, 7, 8, 9, 10}
-
-    # Axis labels used in G-code commands
-    _AXES_6 = ("X", "Y", "Z", "A", "B", "C")
-    _AXES_4 = ("X", "Y", "Z", "A")
-
-    def __init__(self) -> None:
+class WLKATA_UART:
+    def __init__(self):
         """Initialize the WLKATA UART communication interface.
 
-        Sets up internal state variables for robot status tracking, GPIO
-        control, and resolves axis-dependent lookup tables based on
-        ``axis_count``.
-
-        Raises:
-            ValueError: If ``axis_count`` is not ``4`` or ``6``.
+        Sets up internal state variables for robot status tracking and GPIO control.
         """
         self.__message_flag = False
         self.mirobot_state_all = {
@@ -99,136 +25,139 @@ class WLKATA_UART(ABC):
             "angle_X": -1, "angle_Y": -1, "angle_Z": -1,
             "coordinate_X": -1, "coordinate_Y": -1, "coordinate_Z": -1,
             "coordinate_RX": -1, "coordinate_RY": -1, "coordinate_RZ": -1,
-            "pump": -1, "valve": -1, "mode": -1
+            "pump": -1, "valve": -1, "mooe": -1
         }
         self.gpio_state = [0, 0, 0, 0]
-
-        # resolve axis-dependent tables once
-        if self.axis_count == 6:
-            self._angle_map = self._ANGLE_MAP_6
-            self._coord_map = self._COORD_MAP_6
-            self._valid_homing_modes = self._VALID_HOMING_MODES_6
-            self._axes = self._AXES_6
-        elif self.axis_count == 4:
-            self._angle_map = self._ANGLE_MAP_4
-            self._coord_map = self._COORD_MAP_4
-            self._valid_homing_modes = self._VALID_HOMING_MODES_4
-            self._axes = self._AXES_4
-        else:
-            raise ValueError(f"Unsupported axis_count: {self.axis_count} (must be 4 or 6)")
         
 
-    def message_print(self, flag: bool) -> None:
-        """Enable or disable debug printing of sent/received messages.
+    def message_print(self, flag):
+        """Enable or disable message printing for debugging.
 
         Args:
-            flag: ``True`` to print every serial read/write to *stdout*,
-                ``False`` to suppress output.
+            flag (bool): True to enable printing of sent/received messages,
+                        False to disable.
         """
         self.__message_flag = flag
-
-    def read_message(self) -> str:
-        """Read a single line from the serial port.
+    
+    def read_message(self):
+        """Read a message from the serial port.
 
         Returns:
-            The decoded line (stripped of whitespace), or ``"read error"``
-            if no data is waiting.
+            str: The received message, or "read error" if no data available.
         """
+        self.line = " "
         if self.pSerial.in_waiting > 0:
-            line = self.pSerial.readline().decode('utf-8').strip()
+            self.line = self.pSerial.readline().decode('utf-8').strip()
             if self.__message_flag:
-                print(f"read:\t{line}")
-            return line
+                print("read:\t", end="")
+                print(self.line)
+            return self.line
         else:
             return "read error"
 
-    def sendMsg(self, message: str) -> None:
+    def sendMsg(self, string):
         """Send a command string to the robot.
 
-        A ``\\r\\n`` terminator is appended automatically.  When an RS485
-        address is configured (``address != -1``), the message is prefixed
-        with ``@<address>``.
-
         Args:
-            message: The command string to send (without ``\\r\\n``).
+            string (str): The command string to send (without \r\n).
         """
-        message = f"{message}\r\n"
-
         if self.address != -1:
-            message = f"@{self.address}{message}"
-
-        self.pSerial.write(message.encode("utf-8"))
-
+            self.string = "@" + str(self.address) + string + "\r\n"
+        else:
+            self.string = string + "\r\n"
+        self.pSerial.write(self.string.encode("utf-8"))
         if self.__message_flag:
-            print(f"write:\t{message}")
-
+            print("write:\t", end="")
+            print(self.string)
         time.sleep(0.1)
+    
 
-    def init(self, p: serial.Serial, adr: int) -> None:
-        """Bind a serial port and set the RS485 address.
-
-        This must be called before any other communication method.
+    def init(self, p, adr):
+        """Initialize the serial communication.
 
         Args:
-            p: An open ``serial.Serial`` instance.
-            adr: RS485 address (``0``-``255``), or ``-1`` for plain UART mode.
+            p: Serial port object (e.g., serial.Serial instance).
+            adr (int): Robot address for RS485 (-1 for UART mode, 0-255 for RS485).
         """
         self.pSerial = p
         self.address = adr
 
 
-    def homing(self, mode: int = 8) -> None:
+    def homing(self, mode=8):
         """Perform robot homing (return to home position).
 
-        The set of accepted modes is determined by ``axis_count``.  If *mode*
-        is not in the valid set, the class-level ``_homing_fallback`` command
-        is sent instead.
-
-        Note:
-            Homing is asynchronous — the robot may still be moving after
-            this method returns.
-
         Args:
-            mode: Homing mode.  Defaults to ``8``.
+            mode (int): Homing mode (0-10). Defaults to 8.
+                       Different modes may home different axes or use different procedures.
         """
-        if mode in self._valid_homing_modes:
-            self.sendMsg(f"o105={mode}")
+        self.mode = mode
+        if self.mode == 0:
+            self.sendMsg("o105=0")
+        elif self.mode == 1:
+            self.sendMsg("o105=1")
+        elif self.mode == 2:
+            self.sendMsg("o105=2")
+        elif self.mode == 3:
+            self.sendMsg("o105=3")
+        elif self.mode == 4:
+            self.sendMsg("o105=4")
+        elif self.mode == 5:
+            self.sendMsg("o105=5")
+        elif self.mode == 6:
+            self.sendMsg("o105=6")
+        elif self.mode == 7:
+            self.sendMsg("o105=7")
+        elif self.mode == 8:
+            self.sendMsg("o105=8")
+        elif self.mode == 9:
+            self.sendMsg("o105=9")
+        elif self.mode == 10:
+            self.sendMsg("o105=10")
         else:
-            self.sendMsg(self._homing_fallback)
+            self.sendMsg("o105=8")
+        # Note: Homing is asynchronous; the robot may still be moving after this call
 
-    def runFile(self, fileName: Union[str, int], num: bool = False) -> int:
+    def runFile(self, fileName, num=False):
         """Execute an offline program file stored on the robot controller.
 
         Args:
-            fileName: Name or number of the file to execute.
-            num: If ``True``, use the ``o112`` command (by number);
-                otherwise use ``o111`` (by name).
+            fileName (str or int): Name or number of the file to execute.
+            num (bool): If True, use o112 command (with number), else o111.
 
         Returns:
-            ``1`` on success.
+            int: 1 on success.
 
         Raises:
-            Exception: If the controller replies with an error or no ``"ok"``.
+            Exception: If file execution fails or returns error.
         """
-        cmd = "o112" if num else "o111"
-        self.sendMsg(f"{cmd}{fileName}")
+        self.num = num
 
-        reply = self.read_message()
-        if reply == "ok":
+        if self.num == True:
+            self.fileName = "o112" + str(fileName)
+            self.sendMsg(self.fileName)
+        elif self.num == False:
+            self.fileName = "o111" + str(fileName)
+            self.sendMsg(self.fileName)
+        else:
+            self.fileName = "o111" + str(fileName)
+            self.sendMsg(self.fileName)
+
+        self.var_read_message = self.read_message()
+        if self.var_read_message == "ok":
             return 1
-        elif reply == "error":
+        elif self.var_read_message == "error":
             self.__error_except(self.runFile, 4)
         else:
             self.__error_except(self.runFile, 1)
 
-    def cancellation(self) -> int:
-        """Stop the current robot movement immediately.
+    def cancellation(self):
+        """Stop the current robot movement or action immediately.
 
         Returns:
-            ``1`` on success.
+            int: 1 on success.
 
         Raises:
-            Exception: If the controller does not reply ``"ok"``.
+            Exception: If the stop command fails.
         """
         self.sendMsg("o117")
         if self.read_message() == "ok":
@@ -236,601 +165,637 @@ class WLKATA_UART(ABC):
         else:
             self.__error_except(self.cancellation, 1)
 
-    def gripper(self, num: int) -> int:
+    def gripper(self, num):
         """Control the gripper (if equipped).
 
         Args:
-            num: Gripper command — ``0`` = open/release, ``1`` = close
-                (medium force), ``2`` = close (high force).
+            num (int): Gripper command:
+                      0 - Open/Release
+                      1 - Close/Grip (medium force)
+                      2 - Close/Grip (high force)
 
         Returns:
-            ``1`` on success.
+            int: 1 on success.
 
         Raises:
-            Exception: If the controller does not reply ``"ok"``.
+            Exception: If gripper control fails.
         """
-        pwm = {0: 0, 1: 40, 2: 60}.get(num, 0)
-        self.sendMsg(f"M3 S{pwm}")
+        self.num = num
+        if self.num == 0:
+            self.sendMsg("M3 S0")
+        elif self.num == 1:
+            self.sendMsg("M3 S40")
+        elif self.num == 2:
+            self.sendMsg("M3 S60")
+        else:
+            self.sendMsg("M3 S0")
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.gripper, 1)
 
-    def pump(self, num: int) -> int:
-        """Control the air pump (if equipped).
+    #Pump control function
+    # 气泵控制函数
 
-        Args:
-            num: Pump command — ``0`` = off, ``1`` = full power (PWM 1000),
-                ``2`` = half power (PWM 500).
-
-        Returns:
-            ``1`` on success.
-
-        Raises:
-            Exception: If the controller does not reply ``"ok"``.
-        """
-        pwm = {0: 0, 1: 1000, 2: 500}.get(num, 0)
-        self.sendMsg(f"M3 S{pwm}")
+    def pump(self, num):
+        self.num = num
+        if self.num == 0:
+            self.sendMsg("M3 S0")
+        elif self.num == 1:
+            self.sendMsg("M3 S1000")
+        elif self.num == 2:
+            self.sendMsg("M3 S500")
+        else:
+            self.sendMsg("M3 S0")
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.pump, 1)
 
-    def pwmWrite(self, num: int) -> int:
-        """Set the PWM output directly.
+    #PWM control function, num range 0-1000
+    # PWM控制函数，num取值范围0-1000
 
-        Args:
-            num: PWM duty value in the range ``0``–``1000``.
-
-        Returns:
-            ``1`` on success.
-
-        Raises:
-            Exception: If the controller does not reply ``"ok"``.
-        """
-        self.sendMsg(f"M3 S{num}")
+    def pwmWrite(self, num):
+        self.num = "M3 S" + str(num)
+        self.sendMsg(self.num)
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.pwmWrite, 1)
 
-    def zero(self) -> None:
-        """Move all axes to their zero/reference positions.
+    def zero(self):
+        """Move the robot to the zero position in angle mode.
 
-        The number of axes zeroed is determined by ``axis_count``.
-
-        Note:
-            Movement is asynchronous — the robot may still be moving after
-            this method returns.
+        This moves all axes to their zero/reference positions.
         """
-        coords = "".join(f"{ax}0" for ax in self._axes)
-        self.sendMsg(f"M21 G90 G00 {coords}")
+        self.sendMsg("M21 G90 G00 X0 Y0 Z0 A0 B0 C00")
+        # Note: Zeroing is asynchronous; position may not be reached immediately
 
-    def writecoordinate(self, motion: int, position: int, *axes_values: float) -> None:
+    def writecoordinate(self, motion, position, x, y, z, a, b, c):
         """Move the robot to specified Cartesian coordinates.
 
         Args:
-            motion: Movement type — ``0`` = fast (G00), ``1`` = linear (G01),
-                ``2`` = joint/gate (G05).
-            position: Coordinate mode — ``0`` = absolute (G90),
-                ``1`` = incremental (G91).
-            *axes_values: Coordinate values matching the robot's axes.
-                6-axis robots expect ``(x, y, z, a, b, c)``;
-                4-axis robots expect ``(x, y, z, a)``.
+            motion (int): Movement type:
+                         0 - Fast (G00)
+                         1 - Linear (G01)
+                         2 - Joint (G05)
+            position (int): Coordinate mode:
+                           0 - Absolute (G90)
+                           1 - Incremental (G91)
+            x (float): X coordinate
+            y (float): Y coordinate
+            z (float): Z coordinate
+            a (float): A rotation (RX)
+            b (float): B rotation (RY)
+            c (float): C rotation (RZ)
         """
-        motion_code = {0: "G00", 1: "G01", 2: "G05"}.get(motion, "G00")
-        position_code = {0: "G90", 1: "G91"}.get(position, "G90")
-        coords = "".join(f"{ax}{val}" for ax, val in zip(self._axes, axes_values))
-        self.sendMsg(f"M20{position_code}{motion_code}{coords}")
+        self.motion = motion
+        self.position = position
+        self.coordinate = "X" + str(x) + "Y" + str(y) + "Z" + str(z) + "A" + str(a) + "B" + str(b) + "C" + str(c)
+        if self.motion == 0:
+            self.motion = "G00"
+        elif self.motion == 1:
+            self.motion = "G01"
+        elif self.motion == 2:
+            self.motion = "G05"
+        else:
+            self.motion = "G00"
 
-    def speed(self, num: int) -> int:
-        """Set the robot movement speed.
+        if self.position == 0:
+            self.position = "G90"
+        elif self.position == 1:
+            self.position = "G91"
+        else:
+            self.position = "G90"
+        self.coordinate = "M20" + str(self.position) + str(self.motion) + self.coordinate
+        self.sendMsg(self.coordinate)
+        # if self.read_message() == "ok":
+        #     return 1
+        # else:
+        #     self.__error_except(self.writecoordinate, 1)
 
-        Args:
-            num: Speed value in the range ``0``–``100``.
+    #Robot speed control, num:0-100
+    # 机械臂速度控制，num:0-100
 
-        Returns:
-            ``1`` on success.
-
-        Raises:
-            Exception: If the controller does not reply ``"ok"``.
-        """
-        self.sendMsg(f"F{num}")
+    def speed(self, num):
+        self.num = "F" + str(num)
+        self.sendMsg(self.num)
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.speed, 1)
 
-    def writeangle(self, position: int, *axes_values: float) -> None:
-        """Move the robot to specified joint angles.
+    """Robot angle control function
+    position: 0-absolute movement 1-incremental movement
+     x/y/z/a/b/c: angles of 1-6 axes of the robot
+    """
+    # 机械臂角度控制函数
+    # position: 0-绝对值运动 1-增量值运动
+    # x/y/z/a/b/c: 机械臂1-6轴角度值
 
-        Args:
-            position: Coordinate mode — ``0`` = absolute (G90),
-                ``1`` = incremental (G91).
-            *axes_values: Angle values matching the robot's axes.
-                6-axis robots expect ``(x, y, z, a, b, c)``;
-                4-axis robots expect ``(x, y, z, a)``.
-        """
-        position_code = {0: "G90", 1: "G91"}.get(position, "G90")
-        coords = "".join(f"{ax}{val}" for ax, val in zip(self._axes, axes_values))
-        self.sendMsg(f"M21{position_code}G00{coords}")
+    def writeangle(self, position, x, y, z, a, b, c):
+        self.position = position
+        self.coordinate = "X" + str(x) + "Y" + str(y) + "Z" + str(z) + "A" + str(a) + "B" + str(b) + "C" + str(c)
+        if self.position == 0:
+            self.position = "G90"
+        elif self.position == 1:
+            self.position = "G91"
+        else:
+            self.position = "G90"
+        self.coordinate = "M21" + str(self.position) + "G00" + self.coordinate
+        self.sendMsg(self.coordinate)
+        # if self.read_message() == "ok":
+        #     return 1
+        # else:
+        #     self.__error_except(self.writeangle, 1)
 
-    def writeexpand(self, motion: int, position: int, d: float) -> None:
-        """Move the 7th (expansion) axis.
+    """Robot 7th axis movement
+    motion:0-fast movement 1-linear movement
+    position: 0-absolute movement 1-incremental movement
+    """
+    # 机械臂第7轴运动
+    # motion:0-快速运动 1-直线运动
+    # position: 0-绝对值运动 1-增量值运动
 
-        Args:
-            motion: Movement type — ``0`` = fast (G00), ``1`` = linear (G01).
-            position: Coordinate mode — ``0`` = absolute (G90),
-                ``1`` = incremental (G91).
-            d: Target position or offset for the 7th axis.
-        """
-        motion_code = {0: "G00", 1: "G01"}.get(motion, "G00")
-        position_code = {0: "G90", 1: "G91"}.get(position, "G90")
-        self.sendMsg(f"{position_code}{motion_code}D{d}")
+    def writeexpand(self, motion, position, d):
+        self.motion = motion
+        self.position = position
+        self.coordinate = "D" + str(d)
+        if self.motion == 0:
+            self.motion = "G00"
+        elif self.motion == 1:
+            self.motion = "G01"
+        else:
+            self.motion = "G00"
 
-    def restart(self) -> int:
-        """Restart the robot controller.
+        if self.position == 0:
+            self.position = "G90"
+        elif self.position == 1:
+            self.position = "G91"
+        else:
+            self.position = "G90"
+        self.coordinate = str(self.position) + str(self.motion) + self.coordinate
+        self.sendMsg(self.coordinate)
+        # if self.read_message() == "ok":
+        #     return 1
+        # else:
+        #     self.__error_except(self.writeexpand, 1)
 
-        Returns:
-            ``1`` on success.
+    #Robot restart
+    # 机械臂重启
 
-        Raises:
-            Exception: If the controller does not reply ``"ok"``.
-        """
+    def restart(self):
         self.sendMsg("o100")
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.restart, 1)
 
-    def version(self) -> Union[tuple[str, str], str]:
-        """Query the firmware version of the robot controller.
+    def version(self):
+        """Get the firmware version of the robot controller.
 
-        Sends the ``$V`` command and waits for a two-line response whose
-        first line starts with ``"EXbox"`` and whose second line starts
-        with ``_version_prefix``.
-
-        Note:
-            Currently only available in UART mode, not RS485.
+        Note: Currently only available in UART mode, not RS485.
 
         Returns:
-            A ``(controller_version, robot_version)`` tuple on success,
-            or ``"Query failed"`` if no valid response is received within
-            five attempts.
+            tuple: (controller_version, robot_version) or "Query failed" on timeout.
 
         Raises:
-            UnicodeDecodeError: If the serial response cannot be decoded.
+            UnicodeDecodeError: If response cannot be decoded.
         """
+        self.lina = ""
+        self.lina1 = ""
+
         self.pSerial.flushInput()
         self.pSerial.flushOutput()
         self.sendMsg("$V")
 
-        for _ in range(5):
-            line1 = self.pSerial.readline().decode('utf-8').strip()
-            line2 = self.pSerial.readline().decode('utf-8').strip()
+        timeout_cnt = 0
 
-            if line1.startswith('EXbox') and line2.startswith(self._version_prefix):
-                return line1, line2
+        while True:
+            if timeout_cnt >= 5:
+                return "Query failed"
 
+            self.lina = self.pSerial.readline().decode('utf-8').strip()
+            self.lina1 = self.pSerial.readline().decode('utf-8').strip()
+
+            if self.lina.startswith('EXbox') and self.lina1.startswith(
+                    'Mirobot'):
+                break
+
+            timeout_cnt += 1
             time.sleep(0.1)
 
-        return "Query failed"
+        return self.lina, self.lina1
 
-    # --- internal error helper ------------------------------------------------
+    #Error and exception, built-in function
+    # 错误和异常，内置函数
 
-    _ERROR_MESSAGES: dict[int, str] = {
-        1: "No reply - 'ok'",
-        2: "parameter error",
-        3: "regular expression error",
-        4: "File run error",
-    }
+    def __error_except(self, f, num):
+        if num == 1:
+            raise Exception(f"{f.__name__}: No reply - 'ok'")
+        elif num == 2:
+            raise Exception(f"{f.__name__}: parameter error")
+        elif num == 3:
+            raise Exception(f"{f.__name__}: regular expression error")
+        elif num == 4:
+            raise Exception(f"{f.__name__}: File run error")
+        else:
+            pass
 
-    def __error_except(self, f: Callable[..., Any], num: int) -> None:
-        """Raise an ``Exception`` with a standardised message.
-
-        Args:
-            f: The calling method (used for its ``__name__``).
-            num: Error code key into ``_ERROR_MESSAGES``.
-
-        Raises:
-            Exception: If *num* maps to a known message.
-        """
-        msg = self._ERROR_MESSAGES.get(num)
-        if msg:
-            raise Exception(f"{f.__name__}: {msg}")
-
-    def getStatus(self) -> Union[dict[str, str], str, int]:
+    def getStatus(self):
         """Query and update the full status of the robot.
 
-        Sends a ``?`` command and parses the angle / coordinate / pump /
-        valve / mode response.
+        Sends a '?' command to get current position, angles, and state.
 
         Returns:
-            A status dictionary on success, ``-1`` if the response could not
-            be parsed, or ``"error"`` if no data was waiting on the serial
-            port.
+            dict or str: Robot status dictionary or "error" if no response.
         """
+        self.line = " "
         self.pSerial.flushInput()
         self.pSerial.flushOutput()
         self.sendMsg("?")
         if self.pSerial.in_waiting > 0:
-            line = self.pSerial.readline().decode('utf-8').strip()
-            if line.startswith("<") and line.endswith(">"):
-                data = self.__parse_response(line)
+            self.line = self.pSerial.readline().decode('utf-8').strip()
+            if self.line[0] == "<" and self.line[-1] == ">":
+                self.data = self.__parse_response(self.line)
             else:
-                data = -1
+                self.data = -1
         else:
             return "error"
 
         time.sleep(0.1)
-        return data
+        return self.data
 
-    # --- status response parsing ----------------------------------------------
+    #Regular expression for the full status of the robot
+    # 机械臂全部状态的正则表达式
 
-    _STATUS_PATTERN: re.Pattern[str] = re.compile(
-        r'<(\w+),Angle\(ABCDXYZ\):([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),'
-        r'Cartesian coordinate\(XYZ RxRyRz\):([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),'
-        r'Pump PWM:([\d.-]+),Valve PWM:([\d.-]+),Motion_MODE:([\d.-]+)>'
-    )
-
-    _STATUS_KEYS: list[str] = [
-        "state",
-        "angle_A", "angle_B", "angle_C", "angle_D",
-        "angle_X", "angle_Y", "angle_Z",
-        "coordinate_X", "coordinate_Y", "coordinate_Z",
-        "coordinate_RX", "coordinate_RY", "coordinate_RZ",
-        "pump", "valve", "mode",
-    ]
-
-    def __parse_response(self, line: str) -> Union[dict[str, str], str]:
-        """Parse a ``<…>`` status response into a dictionary.
-
-        Args:
-            line: The raw status line (including angle brackets).
-
-        Returns:
-            A dictionary keyed by ``_STATUS_KEYS``, or ``"parse error"``
-            if the line does not match the expected pattern.
-        """
-        match = self._STATUS_PATTERN.match(line)
+    def __parse_response(self, line):
+        self.pattern = r'<(\w+),Angle\(ABCDXYZ\):([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),Cartesian coordinate\(XYZ RxRyRz\):([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),Pump PWM:([\d.-]+),Valve PWM:([\d.-]+),Motion_MODE:([\d.-]+)>'
+        match = re.match(self.pattern, line)
         if match:
-            self.mirobot_state_all = dict(zip(self._STATUS_KEYS, match.groups()))
+
+            self.mirobot_state_all = {"state": " ",
+                                      "angle_A": 0, "angle_B": 0, "angle_C": 0, "angle_D": 0, "angle_X": 0,
+                                      "angle_Y": 0, "angle_Z": 0,
+                                      "coordinate_X": 0, "coordinate_Y": 0, "coordinate_Z": 0, "coordinate_RX": 0,
+                                      "coordinate_RY": 0, "coordinate_RZ": 0,
+                                      "pump": 0,
+                                      "valve": 0,
+                                      "mooe": 0}
+
+            self.mirobot_state_all["state"] = match.group(1)
+            self.mirobot_state_all["angle_A"] = match.group(2)
+            self.mirobot_state_all["angle_B"] = match.group(3)
+            self.mirobot_state_all["angle_C"] = match.group(4)
+            self.mirobot_state_all["angle_D"] = match.group(5)
+            self.mirobot_state_all["angle_X"] = match.group(6)
+            self.mirobot_state_all["angle_Y"] = match.group(7)
+            self.mirobot_state_all["angle_Z"] = match.group(8)
+            self.mirobot_state_all["coordinate_X"] = match.group(9)
+            self.mirobot_state_all["coordinate_Y"] = match.group(10)
+            self.mirobot_state_all["coordinate_Z"] = match.group(11)
+            self.mirobot_state_all["coordinate_RX"] = match.group(12)
+            self.mirobot_state_all["coordinate_RY"] = match.group(13)
+            self.mirobot_state_all["coordinate_RZ"] = match.group(14)
+            self.mirobot_state_all["pump"] = match.group(15)
+            self.mirobot_state_all["valve"] = match.group(16)
+            self.mirobot_state_all["mooe"] = match.group(17)
             return self.mirobot_state_all
         else:
             return "parse error"
 
-    def getState(self) -> str:
-        """Return the current motion state of the robot (e.g. ``"Idle"``, ``"Run"``).
+    #Get robot state
+    # 获取机械臂状态
 
-        Returns:
-            The state string from the most recent status query.
-        """
+    def getState(self):
         self.getStatus()
         return self.mirobot_state_all["state"]
 
-    def getAngle(self, num: int) -> str:
+    def getAngle(self, num):
         """Get the angle of a specific robot axis.
 
         Args:
-            num: Axis number.  Valid values depend on ``axis_count``:
-                6-axis — ``1`` (X), ``2`` (Y), ``3`` (Z), ``4`` (A),
-                ``5`` (B), ``6`` (C), ``7`` (D).
-                4-axis — ``1`` (X), ``2`` (Y), ``3`` (Z), ``4`` (A),
-                ``7`` (D).
+            num (int): Axis number (1-7):
+                      1=X, 2=Y, 3=Z, 4=A, 5=B, 6=C, 7=D
 
         Returns:
-            The current angle as a numeric string.
+            float: Current angle of the specified axis.
 
         Raises:
-            Exception: If *num* does not map to a valid axis.
+            Exception: If axis number is invalid.
         """
-        key = self._angle_map.get(num)
-        if key is None:
-            self.__error_except(self.getAngle, 2)
-            return
+        self.num = num
         self.getStatus()
-        return self.mirobot_state_all[key]
+        if num == 1:
+            return self.mirobot_state_all["angle_X"]
+        elif num == 2:
+            return self.mirobot_state_all["angle_Y"]
+        elif num == 3:
+            return self.mirobot_state_all["angle_Z"]
+        elif num == 4:
+            return self.mirobot_state_all["angle_A"]
+        elif num == 5:
+            return self.mirobot_state_all["angle_B"]
+        elif num == 6:
+            return self.mirobot_state_all["angle_C"]
+        elif num == 7:
+            return self.mirobot_state_all["angle_D"]
+        else:
+            self.__error_except(self.getAngle, 2)
 
-    def getcoordinate(self, num: int) -> str:
-        """Get a Cartesian coordinate of the robot end-effector.
+    def getcoordinate(self, num):
+        """Get the Cartesian coordinate of the robot end effector.
 
         Args:
-            num: Coordinate axis.  Valid values depend on ``axis_count``:
-                6-axis — ``1`` (X), ``2`` (Y), ``3`` (Z), ``4`` (RX),
-                ``5`` (RY), ``6`` (RZ).
-                4-axis — ``1`` (X), ``2`` (Y), ``3`` (Z), ``4`` (RX).
+            num (int): Coordinate axis (1-6):
+                      1=X, 2=Y, 3=Z, 4=RX, 5=RY, 6=RZ
 
         Returns:
-            The current coordinate as a numeric string.
+            float: Current coordinate value.
 
         Raises:
-            Exception: If *num* does not map to a valid coordinate.
+            Exception: If coordinate number is invalid.
         """
-        key = self._coord_map.get(num)
-        if key is None:
-            self.__error_except(self.getcoordinate, 2)
-            return
+        self.num = num
         self.getStatus()
-        return self.mirobot_state_all[key]
+        if num == 1:
+            return self.mirobot_state_all["coordinate_X"]
+        elif num == 2:
+            return self.mirobot_state_all["coordinate_Y"]
+        elif num == 3:
+            return self.mirobot_state_all["coordinate_Z"]
+        elif num == 4:
+            return self.mirobot_state_all["coordinate_RX"]
+        elif num == 5:
+            return self.mirobot_state_all["coordinate_RY"]
+        elif num == 6:
+            return self.mirobot_state_all["coordinate_RZ"]
+        else:
+            self.__error_except(self.getcoordinate, 2)
 
-    def getpump(self) -> str:
-        """Get the current pump PWM value.
+    #Get end state
+    # 获取末端状态
 
-        Returns:
-            The pump PWM value as a numeric string.
-        """
+    def getpump(self):
         self.getStatus()
         return self.mirobot_state_all["pump"]
 
-    def getmode(self) -> str:
-        """Get the current motion mode of the robot.
+    #Get robot motion mode
+    # 获取机械臂运动模式
 
-        Returns:
-            The motion mode as a numeric string.
-        """
+    def getmooe(self):
         self.getStatus()
-        return self.mirobot_state_all["mode"]
+        return self.mirobot_state_all["mooe"]
 
+   
 
-    # ---- GPIO helpers --------------------------------------------------------
+    def gpio_init(self):
+        """Initialize GPIO pins (disable all enables).
 
-    def gpio_init(self) -> int:
-        """Disable all GPIO enables (reset to 0).
+        Sets all GPIO enable states to 0 (disabled).
 
         Returns:
-            ``1`` on success.
+            int: 1 on success.
 
         Raises:
-            Exception: If the controller does not reply ``"ok"``.
+            Exception: If GPIO initialization fails.
         """
-        self.gpio_state = [0, 0, 0, 0]
-        self.sendMsg("o132=0,0,0,0")
+        for i in range(0, 4):
+            self.gpio_state[i] = 0
+        self.var_gpio_state = "o132=" + str(self.gpio_state[0]) + "," + str(self.gpio_state[1]) + "," + str(
+            self.gpio_state[2]) + "," + str(self.gpio_state[3])
+        self.sendMsg(self.var_gpio_state)
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.gpio_init, 1)
 
-    _GPIO_PIN_INDEX: dict[str, int] = {"A0": 0, "A1": 1, "D0": 2, "D1": 3}
+    #Write GPIO mode
+    # gpio模式写入
 
-    def __gpio_pin_cmd(self, cmd_prefix: str, name: str, value: Any) -> str | None:
-        """Build a GPIO command that places *value* at the correct pin slot.
-
-        Args:
-            cmd_prefix: Command prefix, e.g. ``"o130="``.
-            name: Pin name — ``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``
-                (case-insensitive).
-            value: Value to place at the pin position.
-
-        Returns:
-            The formatted command string, or ``None`` if *name* is invalid.
-        """
-        pin_name = name.capitalize()
-        idx = self._GPIO_PIN_INDEX.get(pin_name)
-        if idx is None:
-            return None
-        parts = [""] * 4
-        parts[idx] = str(value)
-        return f"{cmd_prefix}{','.join(parts)}"
-
-    def __gpio_pin_read(
-        self,
-        query_cmd: str,
-        name: str,
-        caller: Callable[..., Any],
-        pattern: str = r'^([\d]+),([\d]+),([\d]+),([\d]+)$',
-    ) -> str | None:
-        """Send a GPIO query and return the value for the specified pin.
-
-        Args:
-            query_cmd: Query command to send, e.g. ``"o130?"``.
-            name: Pin name — ``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``
-                (case-insensitive).
-            caller: The calling method (used for error reporting).
-            pattern: Regex with four capture groups to parse the response.
-
-        Returns:
-            The matched value string for the requested pin.
-
-        Raises:
-            Exception: If the pin name is invalid or the response does not
-                match *pattern*.
-        """
-        pin_name = name.capitalize()
-        idx = self._GPIO_PIN_INDEX.get(pin_name)
-        if idx is None:
-            self.__error_except(caller, 2)
-            return
-        self.sendMsg(query_cmd)
-        response = self.read_message()
-        self.read_message()  # consume second line
-        match = re.match(pattern, response)
-        if match:
-            return match.group(idx + 1)
+    def gpio_mode_write(self, name, num):
+        self.var_name = name.capitalize()
+        self.var_num = num
+        if self.var_name == "A0":
+            self.var_gpio_state = "o130=" + str(self.var_num) + ",,,"
+        elif self.var_name == "A1":
+            self.var_gpio_state = "o130=," + str(self.var_num) + ",,"
+        elif self.var_name == "D0":
+            self.var_gpio_state = "o130=,," + str(self.var_num) + ","
+        elif self.var_name == "D1":
+            self.var_gpio_state = "o130=,,," + str(self.var_num)
         else:
-            self.__error_except(caller, 3)
-
-    def gpio_mode_write(self, name: str, num: int) -> int:
-        """Set the GPIO mode for a pin.
-
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
-            num: Mode value to write.
-
-        Returns:
-            ``1`` on success.
-
-        Raises:
-            Exception: On invalid pin name or missing ``"ok"`` reply.
-        """
-        cmd = self.__gpio_pin_cmd("o130=", name, num)
-        if cmd is None:
             self.__error_except(self.gpio_mode_write, 2)
-            return
-        self.sendMsg(cmd)
+        self.sendMsg(self.var_gpio_state)
+
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.gpio_mode_write, 1)
 
-    def gpio_mode_read(self, name: str) -> str:
-        """Read the GPIO mode for a pin.
+    #Read GPIO mode
+    # gpio模式读取
 
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
+    def gpio_mode_read(self, name):
+        self.var_name = name.capitalize()
+        self.sendMsg("o130?")
+        self.var_mode_num = self.read_message()
+        self.var_mode_num1 = self.read_message()
+        match = re.match('^([\d]+),([\d]+),([\d]+),([\d]+)$', self.var_mode_num)
+        if match:
+            if self.var_name == "A0":
+                return match.group(1)
+            elif self.var_name == "A1":
+                return match.group(2)
+            elif self.var_name == "D0":
+                return match.group(3)
+            elif self.var_name == "D1":
+                return match.group(4)
+            else:
+                self.__error_except(self.gpio_mode_read, 2)
+        else:
+            self.__error_except(self.gpio_mode_read, 3)
 
-        Returns:
-            The mode value as a string.
+    #Write GPIO digital/analog output
+    # gpio数字、模拟输出写入
 
-        Raises:
-            Exception: On invalid pin name or unparseable response.
-        """
-        return self.__gpio_pin_read("o130?", name, self.gpio_mode_read)
-
-    def gpio_output_write(self, name: str, num: int) -> int:
-        """Set the GPIO digital/analog output value for a pin.
-
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
-            num: Output value to write.
-
-        Returns:
-            ``1`` on success.
-
-        Raises:
-            Exception: On invalid pin name or missing ``"ok"`` reply.
-        """
-        cmd = self.__gpio_pin_cmd("o131=", name, num)
-        if cmd is None:
+    def gpio_output_write(self, name, num):
+        self.var_name = name.capitalize()
+        self.var_num = num
+        if self.var_name == "A0":
+            self.var_gpio_num = "o131=" + str(self.var_num) + ",,,"
+        elif self.var_name == "A1":
+            self.var_gpio_num = "o131=," + str(self.var_num) + ",,"
+        elif self.var_name == "D0":
+            self.var_gpio_num = "o131=,," + str(self.var_num) + ","
+        elif self.var_name == "D1":
+            self.var_gpio_num = "o131=,,," + str(self.var_num)
+        else:
             self.__error_except(self.gpio_output_write, 2)
-            return
-        self.sendMsg(cmd)
+
+        self.sendMsg(self.var_gpio_num)
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.gpio_output_write, 1)
 
-    def gpio_input_read(self, name: str) -> str:
-        """Read the GPIO input value for a pin.
+    #Read GPIO input value
+    # gpio输入值读取
 
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
+    def gpio_input_read(self, name):
+        self.var_name = name.capitalize()
+        self.sendMsg("o131?")
+        self.var_mode_num = self.read_message()
+        self.var_mode_num1 = self.read_message()
+        match = re.match('^([\d]+),([\d]+),([\d]+),([\d]+)$', self.var_mode_num)
+        if match:
+            if self.var_name == "A0":
+                return match.group(1)
+            elif self.var_name == "A1":
+                return match.group(2)
+            elif self.var_name == "D0":
+                return match.group(3)
+            elif self.var_name == "D1":
+                return match.group(4)
+            else:
+                self.__error_except(self.gpio_input_read, 2)
+        else:
+            self.__error_except(self.gpio_input_read, 3)
 
-        Returns:
-            The input value as a string.
+    #Write GPIO enable
+    # gpio使能写入
 
-        Raises:
-            Exception: On invalid pin name or unparseable response.
-        """
-        return self.__gpio_pin_read("o131?", name, self.gpio_input_read)
-
-    def gpio_enable_write(self, name: str, num: int) -> int:
-        """Set the GPIO enable state for a pin.
-
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
-            num: Enable value (``0`` = disabled, ``1`` = enabled).
-
-        Returns:
-            ``1`` on success.
-
-        Raises:
-            Exception: On invalid pin name or missing ``"ok"`` reply.
-        """
-        cmd = self.__gpio_pin_cmd("o132=", name, num)
-        if cmd is None:
+    def gpio_enable_write(self, name, num):
+        self.var_name = name.capitalize()
+        self.var_num = num
+        if self.var_name == "A0":
+            self.var_gpio_num = "o132=" + str(self.var_num) + ",,,"
+        elif self.var_name == "A1":
+            self.var_gpio_num = "o132=," + str(self.var_num) + ",,"
+        elif self.var_name == "D0":
+            self.var_gpio_num = "o132=,," + str(self.var_num) + ","
+        elif self.var_name == "D1":
+            self.var_gpio_num = "o132=,,," + str(self.var_num)
+        else:
             self.__error_except(self.gpio_enable_write, 2)
-            return
-        self.sendMsg(cmd)
+
+        self.sendMsg(self.var_gpio_num)
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.gpio_enable_write, 1)
 
-    def gpio_enable_read(self, name: str) -> str:
-        """Read the GPIO enable state for a pin.
+    #Read GPIO enable
+    # gpio使能读取
 
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
+    def gpio_enable_read(self, name):
+        self.var_name = name.capitalize()
+        self.sendMsg("o132?")
+        self.var_mode_num = self.read_message()
+        self.var_mode_num1 = self.read_message()
+        match = re.match('^([\d]+),([\d]+),([\d]+),([\d]+)$', self.var_mode_num)
+        if match:
+            if self.var_name == "A0":
+                return match.group(1)
+            elif self.var_name == "A1":
+                return match.group(2)
+            elif self.var_name == "D0":
+                return match.group(3)
+            elif self.var_name == "D1":
+                return match.group(4)
+            else:
+                self.__error_except(self.gpio_enable_read, 2)
+        else:
+            self.__error_except(self.gpio_enable_read, 3)
 
-        Returns:
-            The enable state as a string.
+    #Write GPIO pin trigger threshold
+    # gpio引脚触发阈值写入
 
-        Raises:
-            Exception: On invalid pin name or unparseable response.
-        """
-        return self.__gpio_pin_read("o132?", name, self.gpio_enable_read)
-
-    def gpio_threshold_write(self, name: str, num: int) -> int:
-        """Set the GPIO trigger threshold for a pin.
-
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
-            num: Threshold value.
-
-        Returns:
-            ``1`` on success.
-
-        Raises:
-            Exception: On invalid pin name or missing ``"ok"`` reply.
-        """
-        cmd = self.__gpio_pin_cmd("o133=", name, num)
-        if cmd is None:
+    def gpio_threshold_write(self, name, num):
+        self.var_name = name.capitalize()
+        self.var_num = num
+        if self.var_name == "A0":
+            self.var_gpio_num = "o133=" + str(self.var_num) + ",,,"
+        elif self.var_name == "A1":
+            self.var_gpio_num = "o133=," + str(self.var_num) + ",,"
+        elif self.var_name == "D0":
+            self.var_gpio_num = "o133=,," + str(self.var_num) + ","
+        elif self.var_name == "D1":
+            self.var_gpio_num = "o133=,,," + str(self.var_num)
+        else:
             self.__error_except(self.gpio_threshold_write, 2)
-            return
-        self.sendMsg(cmd)
+        self.sendMsg(self.var_gpio_num)
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.gpio_threshold_write, 1)
 
-    def gpio_threshold_read(self, name: str) -> str:
-        """Read the GPIO trigger threshold for a pin.
+    #Read GPIO pin trigger threshold
+    # gpio引脚触发阈值读取
 
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
+    def gpio_threshold_read(self, name):
+        self.var_name = name.capitalize()
+        self.sendMsg("o133?")
+        self.var_mode_num = self.read_message()
+        self.var_mode_num1 = self.read_message()
+        match = re.match('^([\d]+),([\d]+),([\d]+),([\d]+)$', self.var_mode_num)
+        if match:
+            if self.var_name == "A0":
+                return match.group(1)
+            elif self.var_name == "A1":
+                return match.group(2)
+            elif self.var_name == "D0":
+                return match.group(3)
+            elif self.var_name == "D1":
+                return match.group(4)
+            else:
+                self.__error_except(self.gpio_threshold_read, 2)
+        else:
+            self.__error_except(self.gpio_threshold_read, 3)
 
-        Returns:
-            The threshold value as a string.
+    #Write GPIO pin trigger file
+    # gpio引脚触发文件写入
 
-        Raises:
-            Exception: On invalid pin name or unparseable response.
-        """
-        return self.__gpio_pin_read("o133?", name, self.gpio_threshold_read)
-
-    def gpio_enable_file_write(self, name: str, num: int) -> int:
-        """Set the GPIO trigger file number for a pin.
-
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
-            num: File number to associate with the pin trigger.
-
-        Returns:
-            ``1`` on success.
-
-        Raises:
-            Exception: On invalid pin name or missing ``"ok"`` reply.
-        """
-        cmd = self.__gpio_pin_cmd("o134=", name, num)
-        if cmd is None:
+    def gpio_enable_file_write(self, name, num):
+        self.var_name = name.capitalize()
+        self.var_num = num
+        if self.var_name == "A0":
+            self.var_gpio_num = "o134=" + str(self.var_num) + ",,,"
+        elif self.var_name == "A1":
+            self.var_gpio_num = "o134=," + str(self.var_num) + ",,"
+        elif self.var_name == "D0":
+            self.var_gpio_num = "o134=,," + str(self.var_num) + ","
+        elif self.var_name == "D1":
+            self.var_gpio_num = "o134=,,," + str(self.var_num)
+        else:
             self.__error_except(self.gpio_enable_file_write, 2)
-            return
-        self.sendMsg(cmd)
+        self.sendMsg(self.var_gpio_num)
         if self.read_message() == "ok":
             return 1
         else:
             self.__error_except(self.gpio_enable_file_write, 1)
 
-    def gpio_enable_file_read(self, name: str) -> str:
-        """Read the GPIO trigger file name for a pin.
+    #Read GPIO pin trigger file
+    # gpio引脚触发文件读取
 
-        Args:
-            name: Pin name (``"A0"``, ``"A1"``, ``"D0"``, or ``"D1"``).
+    def gpio_enable_file_read(self, name):
+        self.var_name = name.capitalize()
+        self.sendMsg("o134?")
+        self.var_mode_num = self.read_message()
+        self.var_mode_num1 = self.read_message()
+        match = re.match('^(.*),(.*),(.*),(.*)$', self.var_mode_num)
+        if match:
+            if self.var_name == "A0":
+                return match.group(1)
+            elif self.var_name == "A1":
+                return match.group(2)
+            elif self.var_name == "D0":
+                return match.group(3)
+            elif self.var_name == "D1":
+                return match.group(4)
+            else:
+                self.__error_except(self.gpio_enable_file_read, 2)
+        else:
+            self.__error_except(self.gpio_enable_file_read, 3)
 
-        Returns:
-            The trigger file name/number as a string.
-
-        Raises:
-            Exception: On invalid pin name or unparseable response.
-        """
-        return self.__gpio_pin_read("o134?", name, self.gpio_enable_file_read,
-                                    pattern=r'^(.*),(.*),(.*),(.*)$')
+    
