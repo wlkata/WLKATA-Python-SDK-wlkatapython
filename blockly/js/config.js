@@ -6,7 +6,8 @@
 let workspace;
 
 // Server URL - use 127.0.0.1 to avoid DNS resolution issues
-const SERVER_URL = 'http://127.0.0.1:5080';
+// Port is set dynamically by the main process via setServerPort()
+let SERVER_URL = 'http://127.0.0.1:5080';
 
 // Cache for function signatures to avoid repeated API calls
 const functionCache = new Map();
@@ -45,6 +46,15 @@ function setWorkspace(ws) {
  */
 function getServerUrl() {
   return SERVER_URL;
+}
+
+/**
+ * Set the server port dynamically (called from the main process).
+ * @param {number} port - The port the Python server is running on
+ */
+function setServerPort(port) {
+  SERVER_URL = `http://127.0.0.1:${port}`;
+  console.log(`Server URL updated to: ${SERVER_URL}`);
 }
 
 /**

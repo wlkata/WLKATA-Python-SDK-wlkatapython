@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
+const net = require('net');
 const fs = require('fs');
 
 // Collect startup logs before the window is created so we can replay them
@@ -111,6 +112,43 @@ function findServerPackageDir() {
 
 let mainWindow;
 let pythonProcess;
+let serverPort = 5080; // Will be updated to an available port
+
+const DEFAULT_PORT = 5080;
+
+/**
+ * Check if a port is available by attempting to create a server on it.
+ * @param {number} port - The port to check
+ * @returns {Promise<boolean>} True if the port is available
+ */
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => {
+      server.close(() => resolve(true));
+    });
+    server.listen(port, '127.0.0.1');
+  });
+}
+
+/**
+ * Find an available port starting from the given port.
+ * Increments by 1 until an available port is found.
+ * @param {number} startPort - The port to start checking from
+ * @returns {Promise<number>} The first available port
+ */
+async function findAvailablePort(startPort) {
+  let port = startPort;
+  while (port < startPort + 100) { // Check up to 100 ports
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+    log(`Port ${port} is in use, trying ${port + 1}...`);
+    port++;
+  }
+  throw new Error(`No available port found in range ${startPort}-${startPort + 99}`);
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -127,8 +165,14 @@ function createWindow() {
   // Open DevTools to see errors (remove this line for production)
   mainWindow.webContents.openDevTools();
 
-  // Replay any startup logs that were collected before the window opened
+  // Replay any startup logs that were collected before the window opened,
+  // and communicate the server port to the renderer.
   mainWindow.webContents.on('did-finish-load', () => {
+    // Set the dynamic server port in the renderer
+    mainWindow.webContents.executeJavaScript(
+      `if (typeof setServerPort === 'function') { setServerPort(${serverPort}); }`
+    ).catch(() => {});
+
     for (const entry of startupLogs) {
       const fn = entry.level === 'error' ? 'console.error' : 'console.log';
       mainWindow.webContents.executeJavaScript(
@@ -201,7 +245,7 @@ function startPythonServer() {
     log(`PYTHONPATH=${env.PYTHONPATH}`);
     log(`CWD for server: ${serverPkgDir || __dirname}`);
 
-    pythonProcess = spawn(pythonCmd, ['-u', serverPath], {
+    pythonProcess = spawn(pythonCmd, ['-u', serverPath, '--port', String(serverPort)], {
       detached: false,
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -250,7 +294,7 @@ function waitForServer(maxAttempts = 50) {
     const checkServer = () => {
       attempts++;
 
-      const req = http.get('http://127.0.0.1:5080/health', (res) => {
+      const req = http.get(`http://127.0.0.1:${serverPort}/health`, (res) => {
         if (res.statusCode === 200) {
           log('Python server is ready!');
           resolve();
@@ -292,6 +336,10 @@ app.whenReady().then(async () => {
     log(`App is packaged: ${isPackaged()}`);
     log(`__dirname: ${__dirname}`);
     log(`resourcesPath: ${process.resourcesPath}`);
+
+    // Find an available port starting from the default
+    serverPort = await findAvailablePort(DEFAULT_PORT);
+    log(`Using port ${serverPort} for Python server`);
 
     // Start Python server (non-blocking)
     await startPythonServer();

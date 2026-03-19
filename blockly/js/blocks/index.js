@@ -9,6 +9,7 @@
  */
 function initCustomBlocks() {
   initImportModuleBlock();
+  initRawBlock();
   initFunctionCallBlock();
   initLibraryFunctionCallBlock();
   initInstanceFunctionCallBlock();

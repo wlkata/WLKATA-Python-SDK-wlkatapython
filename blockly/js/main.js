@@ -46,6 +46,29 @@ function initBlockly() {
   // Update code preview on block change
   workspace.addChangeListener(updateCodePreview);
 
+  // ── Dynamic *args / **kwargs slot management ──
+  // On any connect or disconnect, immediately cleanup trailing empties and
+  // ensure each dynamic param has exactly one trailing empty slot.
+  workspace.addChangeListener((event) => {
+    if (event.type !== Blockly.Events.BLOCK_MOVE) return;
+
+    // Handle connect
+    if (event.newParentId) {
+      const parent = workspace.getBlockById(event.newParentId);
+      if (parent && parent.functionInfo_) {
+        updateDynamicSlots(parent);
+      }
+    }
+
+    // Handle disconnect
+    if (event.oldParentId) {
+      const parent = workspace.getBlockById(event.oldParentId);
+      if (parent && !parent.isDisposed() && parent.functionInfo_) {
+        updateDynamicSlots(parent);
+      }
+    }
+  });
+
   // Listen for block creation and changes to trigger library loading
   workspace.addChangeListener((event) => {
     // Sync toolbox for import blocks

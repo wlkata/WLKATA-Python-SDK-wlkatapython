@@ -111,6 +111,7 @@ function getToolboxConfig() {
           { kind: 'block', type: 'import_module' },
           { kind: 'block', type: 'function_call' },
           { kind: 'block', type: 'instance_function_call' },
+          { kind: 'block', type: 'raw' },
         ],
       },
     ],

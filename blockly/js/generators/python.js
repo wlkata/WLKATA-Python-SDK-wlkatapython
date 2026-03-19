@@ -18,6 +18,15 @@ function initPythonGenerator() {
   const generatorTarget = Blockly.Python.forBlock || Blockly.Python;
 
   /**
+   * Generator for raw (as-is) block.
+   * Outputs the text exactly as typed, without quotes or wrapping.
+   */
+  generatorTarget['raw'] = function(block) {
+    const value = block.getFieldValue('VALUE') || '';
+    return [value, Blockly.Python.ORDER_ATOMIC];
+  };
+
+  /**
    * Generator for import_module block.
    * Produces: import <module_name>
    */
@@ -25,6 +34,56 @@ function initPythonGenerator() {
     const moduleName = block.getFieldValue('MODULE_NAME');
     return `import ${moduleName}\n`;
   };
+
+  /**
+   * Collect arguments from a block's parameters, handling dynamic *args/**kwargs
+   * value-input slots.  Returns an array of argument strings.
+   */
+  function collectArgs(block, funcInfo) {
+    const args = [];
+
+    for (const param of funcInfo.parameters) {
+      if (param.is_varargs) {
+        // Collect connected block values from VARARG value-input slots
+        const indices = getVarargIndices(block, param.name);
+        for (const idx of indices) {
+          const val = Blockly.Python.valueToCode(
+            block, `VARARG_${param.name}_${idx}`, Blockly.Python.ORDER_NONE);
+          if (val) {
+            args.push(val);
+          }
+        }
+      } else if (param.is_varkwargs) {
+        // Collect key=value pairs: both key and value are value inputs
+        const indices = getVarkwIndices(block, param.name);
+        for (const idx of indices) {
+          const key = Blockly.Python.valueToCode(
+            block, `VARKW_KEY_${param.name}_${idx}`, Blockly.Python.ORDER_NONE);
+          const val = Blockly.Python.valueToCode(
+            block, `VARKW_VAL_${param.name}_${idx}`, Blockly.Python.ORDER_NONE);
+          if (key && val) {
+            args.push(`${key}=${val}`);
+          }
+        }
+      } else {
+        const inputName = `PARAM_${param.name}`;
+        const inputValue = Blockly.Python.valueToCode(block, inputName, Blockly.Python.ORDER_NONE);
+
+        if (inputValue) {
+          if (param.is_keyword_only || param.has_default) {
+            args.push(`${param.name}=${inputValue}`);
+          } else {
+            args.push(inputValue);
+          }
+        } else if (!param.has_default) {
+          // Required parameter without value - use None as placeholder
+          args.push('None');
+        }
+      }
+    }
+
+    return args;
+  }
 
   /**
    * Generator for function_call block.
@@ -39,32 +98,7 @@ function initPythonGenerator() {
       return [`${funcName}()`, Blockly.Python.ORDER_FUNCTION_CALL];
     }
 
-    const args = [];
-
-    for (const param of funcInfo.parameters) {
-      const inputName = `PARAM_${param.name}`;
-      const inputValue = Blockly.Python.valueToCode(block, inputName, Blockly.Python.ORDER_NONE);
-
-      if (inputValue) {
-        if (param.is_varargs) {
-          // For *args, just pass the value (assuming it's a tuple/list)
-          args.push(`*${inputValue}`);
-        } else if (param.is_varkwargs) {
-          // For **kwargs, just pass the value (assuming it's a dict)
-          args.push(`**${inputValue}`);
-        } else if (param.is_keyword_only || param.has_default) {
-          // Use keyword argument
-          args.push(`${param.name}=${inputValue}`);
-        } else {
-          // Positional argument
-          args.push(inputValue);
-        }
-      } else if (!param.has_default && !param.is_varargs && !param.is_varkwargs) {
-        // Required parameter without value - use None as placeholder
-        args.push('None');
-      }
-      // If has default and no value provided, skip it (use default)
-    }
+    const args = collectArgs(block, funcInfo);
 
     const code = `${funcName}(${args.join(', ')})`;
     if (block.isStatement_) {
@@ -106,26 +140,7 @@ function initPythonGenerator() {
       return [code, Blockly.Python.ORDER_FUNCTION_CALL];
     }
 
-    const args = [];
-
-    for (const param of funcInfo.parameters) {
-      const inputName = `PARAM_${param.name}`;
-      const inputValue = Blockly.Python.valueToCode(block, inputName, Blockly.Python.ORDER_NONE);
-
-      if (inputValue) {
-        if (param.is_varargs) {
-          args.push(`*${inputValue}`);
-        } else if (param.is_varkwargs) {
-          args.push(`**${inputValue}`);
-        } else if (param.is_keyword_only || param.has_default) {
-          args.push(`${param.name}=${inputValue}`);
-        } else {
-          args.push(inputValue);
-        }
-      } else if (!param.has_default && !param.is_varargs && !param.is_varkwargs) {
-        args.push('None');
-      }
-    }
+    const args = collectArgs(block, funcInfo);
 
     const code = `${callTarget}(${args.join(', ')})`;
     if (isStatement) {

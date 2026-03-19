@@ -32,56 +32,7 @@ function initInstanceFunctionCallBlock() {
       }
     },
 
-    applyFunctionInfo: Blockly.Blocks['function_call'] ? Blockly.Blocks['function_call'].applyFunctionInfo : function(info) {
-      this.functionInfo_ = info;
-
-      const docPreview = info.docstring.length > 500
-        ? info.docstring.substring(0, 500) + '...'
-        : info.docstring;
-      this.setTooltip(docPreview);
-
-      const oldValues = {};
-      if (this.paramInputs_) {
-        for (const paramName of this.paramInputs_) {
-          const input = this.getInput(`PARAM_${paramName}`);
-          if (input && input.connection && input.connection.targetBlock()) {
-            oldValues[paramName] = input.connection.targetBlock();
-          }
-        }
-      }
-
-      const inputNames = this.inputList.map(i => i.name).filter(n => n && n.startsWith('PARAM_'));
-      for (const name of inputNames) {
-        this.removeInput(name);
-      }
-
-      this.paramInputs_ = [];
-
-      for (const param of info.parameters) {
-        const paramName = param.name;
-        this.paramInputs_.push(paramName);
-
-        let labelText = paramName;
-        if (param.has_default) {
-          labelText += ` = ${param.default}`;
-        }
-        if (param.is_varargs) {
-          labelText = '*' + paramName;
-        } else if (param.is_varkwargs) {
-          labelText = '**' + paramName;
-        }
-
-        const input = this.appendValueInput(`PARAM_${paramName}`)
-            .setCheck(null)
-            .appendField(labelText);
-
-        if (oldValues[paramName]) {
-          input.connection.connect(oldValues[paramName].outputConnection);
-        }
-      }
-
-      this.render();
-    },
+    applyFunctionInfo: sharedApplyFunctionInfo,
 
     customContextMenu: Blockly.Blocks['function_call'] ? Blockly.Blocks['function_call'].customContextMenu : function(options) {
       const block = this;
@@ -134,16 +85,42 @@ function initInstanceFunctionCallBlock() {
 
     mutationToDom: function() {
       const container = document.createElement('mutation');
-      const baseBlock = Blockly.Blocks['function_call'];
-      if (baseBlock && baseBlock.mutationToDom) {
-        const baseContainer = baseBlock.mutationToDom.call(this);
-        container.setAttribute('func_name', baseContainer.getAttribute('func_name'));
-        container.setAttribute('is_statement', baseContainer.getAttribute('is_statement'));
-      } else {
-        container.setAttribute('func_name', this.getFieldValue('METHOD'));
-        container.setAttribute('is_statement', this.isStatement_);
-      }
+      container.setAttribute('func_name', this.getFieldValue('METHOD'));
+      container.setAttribute('is_statement', this.isStatement_);
       container.setAttribute('method_options', JSON.stringify(this.methodOptions_));
+
+      if (this.functionInfo_) {
+        // Save full function info for synchronous restoration
+        container.setAttribute('function_info', JSON.stringify(this.functionInfo_));
+
+        const varargData = {};
+        const varkwData = {};
+        for (const param of this.functionInfo_.parameters) {
+          if (param.is_varargs) {
+            const indices = getVarargIndices(this, param.name);
+            let count = 0;
+            for (const idx of indices) {
+              const inp = this.getInput(`VARARG_${param.name}_${idx}`);
+              if (inp && inp.connection && inp.connection.targetBlock()) count++;
+            }
+            if (count > 0) varargData[param.name] = count;
+          } else if (param.is_varkwargs) {
+            const indices = getVarkwIndices(this, param.name);
+            let count = 0;
+            for (const idx of indices) {
+              if (isVarkwSlotOccupied(this, param.name, idx)) count++;
+            }
+            if (count > 0) varkwData[param.name] = count;
+          }
+        }
+        if (Object.keys(varargData).length > 0) {
+          container.setAttribute('vararg_data', JSON.stringify(varargData));
+        }
+        if (Object.keys(varkwData).length > 0) {
+          container.setAttribute('varkw_data', JSON.stringify(varkwData));
+        }
+      }
+
       return container;
     },
 
@@ -152,11 +129,31 @@ function initInstanceFunctionCallBlock() {
       const funcName = xmlElement.getAttribute('func_name');
       const isStatement = xmlElement.getAttribute('is_statement') === 'true';
       this.setStatementMode(isStatement);
+
+      const varargStr = xmlElement.getAttribute('vararg_data');
+      const varkwStr = xmlElement.getAttribute('varkw_data');
+      if (varargStr) {
+        try { this.savedVarargData_ = JSON.parse(varargStr); } catch(e) {}
+      }
+      if (varkwStr) {
+        try { this.savedVarkwData_ = JSON.parse(varkwStr); } catch(e) {}
+      }
+
       if (methodOptions) {
         try {
           this.updateOptions(JSON.parse(methodOptions));
         } catch (e) {}
       }
+
+      // Synchronously recreate inputs from saved function info
+      const funcInfoStr = xmlElement.getAttribute('function_info');
+      if (funcInfoStr) {
+        try {
+          const savedInfo = JSON.parse(funcInfoStr);
+          this.applyFunctionInfo(savedInfo);
+        } catch(e) {}
+      }
+
       if (funcName) {
         this.setFieldValue(funcName, 'METHOD');
         this.updateFunctionInfo(funcName);
@@ -164,20 +161,58 @@ function initInstanceFunctionCallBlock() {
     },
 
     saveExtraState: function() {
-      return {
+      const state = {
         'func_name': this.getFieldValue('METHOD'),
         'is_statement': this.isStatement_,
         'method_options': this.methodOptions_
       };
+
+      if (this.functionInfo_) {
+        // Save full function info for synchronous restoration
+        state.function_info = this.functionInfo_;
+
+        const varargData = {};
+        const varkwData = {};
+        for (const param of this.functionInfo_.parameters) {
+          if (param.is_varargs) {
+            const indices = getVarargIndices(this, param.name);
+            let count = 0;
+            for (const idx of indices) {
+              const inp = this.getInput(`VARARG_${param.name}_${idx}`);
+              if (inp && inp.connection && inp.connection.targetBlock()) count++;
+            }
+            if (count > 0) varargData[param.name] = count;
+          } else if (param.is_varkwargs) {
+            const indices = getVarkwIndices(this, param.name);
+            let count = 0;
+            for (const idx of indices) {
+              if (isVarkwSlotOccupied(this, param.name, idx)) count++;
+            }
+            if (count > 0) varkwData[param.name] = count;
+          }
+        }
+        if (Object.keys(varargData).length > 0) state.vararg_data = varargData;
+        if (Object.keys(varkwData).length > 0) state.varkw_data = varkwData;
+      }
+
+      return state;
     },
 
     loadExtraState: function(state) {
       if (state.is_statement !== undefined) {
         this.setStatementMode(state.is_statement);
       }
+      if (state.vararg_data) this.savedVarargData_ = state.vararg_data;
+      if (state.varkw_data) this.savedVarkwData_ = state.varkw_data;
       if (state.method_options) {
         this.updateOptions(state.method_options);
       }
+
+      // Synchronously recreate inputs from saved function info
+      if (state.function_info) {
+        this.applyFunctionInfo(state.function_info);
+      }
+
       if (state.func_name) {
         this.setFieldValue(state.func_name, 'METHOD');
         this.updateFunctionInfo(state.func_name);
