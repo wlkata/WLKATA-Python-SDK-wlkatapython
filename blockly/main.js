@@ -39,13 +39,20 @@ function isPackaged() {
 
 /**
  * Find the embedded Python binary.
+ * On macOS/Linux the layout is python/bin/python3.12
+ * On Windows the layout is python/python.exe
  */
 function findPython() {
+  const isWin = process.platform === 'win32';
+  const relativePath = isWin
+    ? path.join('python', 'python.exe')
+    : path.join('python', 'bin', 'python3.12');
+
   const possibilities = [
     // In packaged app – extraResources land under process.resourcesPath
-    path.join(process.resourcesPath, 'python', 'bin', 'python3.12'),
+    path.join(process.resourcesPath, relativePath),
     // In development – relative to project root
-    path.join(__dirname, 'python', 'bin', 'python3.12'),
+    path.join(__dirname, relativePath),
   ];
   for (const p of possibilities) {
     log(`Checking for Python at: ${p}`);
@@ -54,7 +61,7 @@ function findPython() {
       return p;
     }
   }
-  logError(`Could not find python3.12, checked: ${possibilities.join(', ')}`);
+  logError(`Could not find embedded Python, checked: ${possibilities.join(', ')}`);
   return null;
 }
 
@@ -163,8 +170,15 @@ function startPythonServer() {
 
     // Build the Python environment so the embedded interpreter can find
     // its own standard library, site-packages, and the server/ package.
-    const pythonDir = path.dirname(path.dirname(pythonCmd)); // …/python
-    const pythonLibDir = path.join(pythonDir, 'lib', 'python3.12');
+    // On macOS/Linux the binary is at python/bin/python3.12 → pythonDir = python/
+    // On Windows the binary is at python/python.exe       → pythonDir = python/
+    const isWin = process.platform === 'win32';
+    const pythonDir = isWin
+      ? path.dirname(pythonCmd)            // …/python
+      : path.dirname(path.dirname(pythonCmd)); // …/python
+    const pythonLibDir = isWin
+      ? path.join(pythonDir, 'Lib')        // Windows: python/Lib
+      : path.join(pythonDir, 'lib', 'python3.12'); // macOS/Linux: python/lib/python3.12
     const sitePackagesDir = path.join(pythonLibDir, 'site-packages');
 
     const env = Object.assign({}, process.env);
