@@ -13,4 +13,8 @@ function initCustomBlocks() {
   initFunctionCallBlock();
   initLibraryFunctionCallBlock();
   initInstanceFunctionCallBlock();
+  initFunctionParamBlock();
+  initLocalVariablesIcon();
+  initProcedureOverrides();
+  setupLocalVarIconListener();
 }

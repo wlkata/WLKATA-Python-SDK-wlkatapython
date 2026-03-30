@@ -17,6 +17,51 @@ function initPythonGenerator() {
   // In older versions, they're directly on the generator object
   const generatorTarget = Blockly.Python.forBlock || Blockly.Python;
 
+  // ── Override Blockly.Python.finish to strip "x = None" for param/local vars ──
+  // The built-in init() emits "x = None" in definitions_ for every workspace
+  // variable.  finish() joins definitions_ + code.  We intercept finish() to
+  // remove param/local-var declarations right before they get joined.
+  const _origPythonFinish = Blockly.Python.finish.bind(Blockly.Python);
+  Blockly.Python.finish = function(code) {
+    // Before the original finish() joins definitions_, scrub param/local-var entries
+    if (typeof getAllLocalScopeNames === 'function') {
+      const ws = typeof getWorkspace === 'function' ? getWorkspace() : null;
+      if (ws) {
+        const localNames = getAllLocalScopeNames(ws);
+        if (localNames.size > 0) {
+          const defs = Blockly.Python.definitions_;
+          for (const key in defs) {
+            if (!key.startsWith('variables_')) continue;
+            const val = defs[key];
+            if (typeof val === 'string') {
+              // Value is "varName = None" — extract varName (may be mangled)
+              const match = val.match(/^(\w+)\s*=\s*None$/);
+              if (match) {
+                const varName = match[1];
+                // Check against both raw names and nameDB_ mangled names
+                if (localNames.has(varName)) {
+                  delete defs[key];
+                } else if (Blockly.Python.nameDB_) {
+                  // Check if any local name mangles to this varName
+                  for (const ln of localNames) {
+                    try {
+                      const mangled = Blockly.Python.nameDB_.getName(ln, Blockly.Names.NameType.VARIABLE || 'VARIABLE');
+                      if (mangled === varName) {
+                        delete defs[key];
+                        break;
+                      }
+                    } catch(e) {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return _origPythonFinish(code);
+  };
+
   /**
    * Generator for raw (as-is) block.
    * Outputs the text exactly as typed, without quotes or wrapping.
@@ -84,6 +129,177 @@ function initPythonGenerator() {
 
     return args;
   }
+
+  /**
+   * Generator for function_param_get block.
+   * Simply emits the parameter name as a Python identifier.
+   */
+  generatorTarget['function_param_get'] = function(block) {
+    const paramName = block.getFieldValue('PARAM_NAME');
+    if (!paramName || paramName === '__NONE__') {
+      return ['None', Blockly.Python.ORDER_ATOMIC];
+    }
+    return [paramName, Blockly.Python.ORDER_ATOMIC];
+  };
+
+  /**
+   * Generator for function_param_set block.
+   * Produces: param_name = <value>
+   */
+  generatorTarget['function_param_set'] = function(block) {
+    const paramName = block.getFieldValue('PARAM_NAME');
+    if (!paramName || paramName === '__NONE__') return '';
+    const value = Blockly.Python.valueToCode(block, 'VALUE', Blockly.Python.ORDER_NONE) || 'None';
+    return paramName + ' = ' + value + '\n';
+  };
+
+  /**
+   * Generator for local_instance_call block.
+   * Produces: localvar.method(arg1, arg2, ...)
+   */
+  generatorTarget['local_instance_call'] = function(block) {
+    const instanceName = block.getFieldValue('INSTANCE_NAME');
+    const methodName = block.getFieldValue('METHOD_NAME');
+    const isStatement = !!(block.previousConnection || block.nextConnection);
+
+    if (!instanceName || instanceName === '__NONE__' || !methodName) {
+      return isStatement ? '' : ['None', Blockly.Python.ORDER_ATOMIC];
+    }
+
+    const callTarget = instanceName + '.' + methodName;
+    const funcInfo = block.functionInfo_;
+
+    if (!funcInfo || !funcInfo.parameters || funcInfo.parameters.length === 0) {
+      const code = callTarget + '()';
+      if (isStatement) return code + '\n';
+      return [code, Blockly.Python.ORDER_FUNCTION_CALL];
+    }
+
+    const args = collectArgs(block, funcInfo);
+    const code = callTarget + '(' + args.join(', ') + ')';
+    if (isStatement) return code + '\n';
+    return [code, Blockly.Python.ORDER_FUNCTION_CALL];
+  };
+
+  /**
+   * Override the built-in procedure definition generators so that
+   * parameters are NOT declared as "global" inside the function body.
+   * The built-in generator adds "global x, y" for every workspace variable
+   * that isn't a parameter.  Since we removed parameter variables from the
+   * workspace, the built-in generator would treat them as unknown.  We
+   * override to produce clean Python: def func(a, b): ...
+   */
+  (function overrideProcedureGenerators() {
+    const procTypes = ['procedures_defnoreturn', 'procedures_defreturn'];
+    for (const procType of procTypes) {
+      generatorTarget[procType] = function(block) {
+        const funcName = Blockly.Python.getProcedureName(
+          block.getFieldValue('NAME'));
+
+        // Build parameter list from the block's arguments_,
+        // including default values from DEFAULT_<paramName> inputs.
+        const params = [];
+        const paramVars = block.getVars ? block.getVars() : [];
+        for (let i = 0; i < paramVars.length; i++) {
+          const pName = Blockly.Python.getVariableName
+            ? Blockly.Python.getVariableName(paramVars[i])
+            : paramVars[i];
+          // Check for a DEFAULT_<paramName> input with a connected block
+          const defaultInput = block.getInput('DEFAULT_' + paramVars[i]);
+          if (defaultInput) {
+            const defaultVal = Blockly.Python.valueToCode(
+              block, 'DEFAULT_' + paramVars[i], Blockly.Python.ORDER_NONE);
+            if (defaultVal) {
+              params.push(pName + '=' + defaultVal);
+              continue;
+            }
+          }
+          params.push(pName);
+        }
+
+        // Collect global declarations: all workspace variables that are
+        // NOT function parameters and NOT local variables.
+        const allVarModels = Blockly.Variables.allUsedVarModels(block.workspace) || [];
+        const localNames = new Set(paramVars);
+        // Also exclude local variables declared via the "V" icon
+        const blockLocalVars = block.localVars_ || [];
+        for (let li = 0; li < blockLocalVars.length; li++) {
+          localNames.add(blockLocalVars[li]);
+        }
+        const globals = [];
+        for (const vm of allVarModels) {
+          const name = vm.getName();
+          if (!localNames.has(name)) {
+            globals.push(Blockly.Python.getVariableName
+              ? Blockly.Python.getVariableName(name)
+              : name);
+          }
+        }
+
+        // Developer variables
+        const devVars = Blockly.Variables.allDeveloperVariables(block.workspace) || [];
+        for (const dv of devVars) {
+          globals.push(Blockly.Python.nameDB_
+            ? Blockly.Python.nameDB_.getName(dv, Blockly.Names.DEVELOPER_VARIABLE_TYPE || 'DEVELOPER_VARIABLE')
+            : dv);
+        }
+
+        const globalDecl = globals.length
+          ? Blockly.Python.INDENT + 'global ' + globals.join(', ') + '\n'
+          : '';
+
+        // Statement prefix / suffix
+        let prefix = '';
+        if (Blockly.Python.STATEMENT_PREFIX) {
+          prefix += Blockly.Python.injectId(Blockly.Python.STATEMENT_PREFIX, block);
+        }
+        if (Blockly.Python.STATEMENT_SUFFIX) {
+          prefix += Blockly.Python.injectId(Blockly.Python.STATEMENT_SUFFIX, block);
+        }
+        if (prefix) {
+          prefix = Blockly.Python.prefixLines(prefix, Blockly.Python.INDENT);
+        }
+
+        // Infinite loop trap
+        let loopTrap = '';
+        if (Blockly.Python.INFINITE_LOOP_TRAP) {
+          loopTrap = Blockly.Python.prefixLines(
+            Blockly.Python.injectId(Blockly.Python.INFINITE_LOOP_TRAP, block),
+            Blockly.Python.INDENT);
+        }
+
+        // Body
+        let body = '';
+        if (block.getInput('STACK')) {
+          body = Blockly.Python.statementToCode(block, 'STACK');
+        }
+
+        // Return value (for procedures_defreturn)
+        let returnVal = '';
+        if (block.getInput('RETURN')) {
+          returnVal = Blockly.Python.valueToCode(block, 'RETURN',
+            Blockly.Python.ORDER_NONE) || '';
+        }
+
+        let returnSuffix = '';
+        if (body && returnVal) {
+          returnSuffix = prefix;
+        }
+        if (returnVal) {
+          returnVal = Blockly.Python.INDENT + 'return ' + returnVal + '\n';
+        } else if (!body) {
+          body = Blockly.Python.PASS || '  pass\n';
+        }
+
+        const code = 'def ' + funcName + '(' + params.join(', ') + '):\n' +
+          globalDecl + prefix + loopTrap + body + returnSuffix + returnVal;
+
+        const scrubbed = Blockly.Python.scrub_(block, code);
+        Blockly.Python.definitions_['%' + funcName] = scrubbed;
+        return null;
+      };
+    }
+  })();
 
   /**
    * Generator for function_call block.

@@ -107,6 +107,29 @@ function initBlockly() {
           block.updateFunctionInfo(methodName);
         }
       }
+    } else if (event.type === Blockly.Events.BLOCK_CHANGE && event.name === 'INSTANCE_NAME') {
+      // local_instance_call: when user changes the local-var dropdown, fetch methods
+      const block = workspace.getBlockById(event.blockId);
+      if (block && block.type === 'local_instance_call' && block.updateMethodList) {
+        block.updateMethodList();
+      }
+    } else if (event.type === Blockly.Events.BLOCK_CHANGE && event.name === 'METHOD_NAME') {
+      // local_instance_call: when user picks a method, fetch its signature
+      const block = workspace.getBlockById(event.blockId);
+      if (block && block.type === 'local_instance_call') {
+        const methodName = block.getFieldValue('METHOD_NAME');
+        if (methodName && methodName !== '...' && block.updateFunctionInfo) {
+          block.updateFunctionInfo(methodName);
+        }
+      }
+    }
+
+    // Also trigger method list fetch when a local_instance_call block is created
+    if (event.type === Blockly.Events.BLOCK_CREATE) {
+      const block = workspace.getBlockById(event.blockId);
+      if (block && block.type === 'local_instance_call' && block.updateMethodList) {
+        setTimeout(() => block.updateMethodList(), 100);
+      }
     }
   });
 }
