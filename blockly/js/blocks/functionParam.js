@@ -414,25 +414,25 @@ function initProcedureOverrides() {
     (function(orig) {
       var origCompose = orig.compose;
       orig.compose = function (containerBlock) {
-        // Remember old params so we can remove stale DEFAULT_ inputs
-        var oldParams = this.arguments_ ? this.arguments_.slice() : [];
-
         // Run original compose (this creates workspace variables + updates arguments_)
         if (origCompose) origCompose.call(this, containerBlock);
 
         var newParams = this.arguments_ ? this.arguments_.slice() : [];
+        var paramSet = new Set(newParams);
 
-        // Remove DEFAULT_ inputs for params that were removed
-        for (var r = 0; r < oldParams.length; r++) {
-          if (newParams.indexOf(oldParams[r]) === -1) {
-            var rmName = 'DEFAULT_' + oldParams[r];
-            if (this.getInput(rmName)) {
-              try { this.removeInput(rmName); } catch(e) {}
+        // Remove ALL DEFAULT_ inputs that don't match a current param
+        var allInputs = this.inputList.slice();
+        for (var r = 0; r < allInputs.length; r++) {
+          var inp = allInputs[r];
+          if (inp.name && inp.name.startsWith('DEFAULT_')) {
+            var pName = inp.name.substring(8);
+            if (!paramSet.has(pName)) {
+              try { this.removeInput(inp.name); } catch(e) {}
             }
           }
         }
 
-        // Add DEFAULT_ inputs for new/existing params
+        // Add DEFAULT_ inputs for params that don't have one yet
         for (var a = 0; a < newParams.length; a++) {
           var inputName = 'DEFAULT_' + newParams[a];
           if (this.getInput(inputName)) continue;
@@ -826,6 +826,21 @@ function setupLocalVarIconListener() {
     function addDefaultInputs(block) {
       if (!block || (block.type !== 'procedures_defnoreturn' && block.type !== 'procedures_defreturn')) return;
       var params = block.getVars ? block.getVars() : [];
+      var paramSet = new Set(params);
+
+      // Remove any DEFAULT_ inputs that no longer match a current param
+      var allInputs = block.inputList.slice(); // copy to avoid mutation during iteration
+      for (var j = 0; j < allInputs.length; j++) {
+        var inp = allInputs[j];
+        if (inp.name && inp.name.startsWith('DEFAULT_')) {
+          var pName = inp.name.substring(8); // strip 'DEFAULT_'
+          if (!paramSet.has(pName)) {
+            try { block.removeInput(inp.name); } catch(e) {}
+          }
+        }
+      }
+
+      // Add DEFAULT_ inputs for current params that don't have one yet
       for (var i = 0; i < params.length; i++) {
         var inputName = 'DEFAULT_' + params[i];
         if (block.getInput(inputName)) continue;

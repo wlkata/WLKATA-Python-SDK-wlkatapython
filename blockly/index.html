@@ -364,32 +364,139 @@
       // Parses generated code for robot variable assignments and updates view tabs
       let currentRobotVars = []; // track current variable names
 
+      // --- Code analysis helpers ---
+      // Parse the generated Python code into structural info:
+      //   - which variables are direct Mirobot_UART assignments at top level
+      //   - which functions internally create Mirobot_UART and return it
+      //   - which variables are assigned from calling those functions
+      function analyzeRobotCode(code) {
+        const lines = code.split('\n');
+        const result = {
+          directVars: [],          // top-level: x = wlkatapython.Mirobot_UART(...)
+          funcReturnVars: [],      // top-level: b = getMirobot()
+          // Map: funcName -> { internalVar, bodyLines[] }
+          robotFunctions: {},
+          // Map: callerVar -> funcName
+          callerToFunc: {}
+        };
+
+        // Phase 1: Identify functions that create Mirobot_UART internally and return it
+        let inFunc = null;   // current function name
+        let funcIndent = 0;  // indentation level of the def line
+        let funcBodyLines = [];
+        let funcInternalVar = null;
+        let funcReturnsRobot = false; // does the function return the robot variable?
+
+        // Helper to save a completed function if it creates AND returns a robot
+        function saveFunc() {
+          if (inFunc && funcInternalVar && funcReturnsRobot) {
+            result.robotFunctions[inFunc] = {
+              internalVar: funcInternalVar,
+              bodyLines: funcBodyLines.slice()
+            };
+          }
+        }
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const trimmed = line.trim();
+
+          // Detect function definition
+          const defMatch = trimmed.match(/^def\s+(\w+)\s*\(/);
+          if (defMatch) {
+            // Save previous function if it had a robot that is returned
+            saveFunc();
+            inFunc = defMatch[1];
+            funcIndent = line.search(/\S/); // indentation of 'def'
+            funcBodyLines = [];
+            funcInternalVar = null;
+            funcReturnsRobot = false;
+            continue;
+          }
+
+          // If we're inside a function
+          if (inFunc !== null) {
+            const lineIndent = line.search(/\S/);
+            // Check if we've left the function (non-empty line at same or lower indent)
+            if (trimmed.length > 0 && lineIndent <= funcIndent) {
+              // Save previous function if it creates and returns a robot
+              saveFunc();
+              inFunc = null;
+              funcBodyLines = [];
+              funcInternalVar = null;
+              funcReturnsRobot = false;
+              // Fall through to check this line as top-level
+            } else {
+              // Still inside function body
+              funcBodyLines.push(trimmed);
+              // Check for Mirobot_UART assignment inside function
+              const innerAssign = trimmed.match(/^(\w+)\s*=\s*wlkatapython\.Mirobot_UART\s*\(/);
+              if (innerAssign) {
+                funcInternalVar = innerAssign[1];
+              }
+              // Check for "return <internalVar>" statement
+              if (funcInternalVar) {
+                const retMatch = trimmed.match(/^return\s+(\w+)/);
+                if (retMatch && retMatch[1] === funcInternalVar) {
+                  funcReturnsRobot = true;
+                }
+              }
+              continue;
+            }
+          }
+
+          // Top-level lines (not inside any function)
+          // Direct assignment: robot = wlkatapython.Mirobot_UART(...)
+          const directMatch = trimmed.match(/^(\w+)\s*=\s*wlkatapython\.Mirobot_UART\s*\(/);
+          if (directMatch) {
+            result.directVars.push(directMatch[1]);
+            continue;
+          }
+
+          // Function-return assignment: b = getMirobot()
+          const callMatch = trimmed.match(/^(\w+)\s*=\s*(\w+)\s*\(/);
+          if (callMatch) {
+            const varName = callMatch[1];
+            const funcName = callMatch[2];
+            // We'll check later if funcName is a robot-returning function
+            // For now, store the candidate
+            result.callerToFunc[varName] = funcName;
+          }
+        }
+
+        // Save last function if it creates and returns a robot
+        saveFunc();
+
+        // Phase 2: Filter callerToFunc to only include calls to robot-returning functions
+        for (const [varName, funcName] of Object.entries(result.callerToFunc)) {
+          if (result.robotFunctions[funcName]) {
+            result.funcReturnVars.push(varName);
+          }
+        }
+        // Remove non-robot callers
+        for (const varName of Object.keys(result.callerToFunc)) {
+          if (!result.robotFunctions[result.callerToFunc[varName]]) {
+            delete result.callerToFunc[varName];
+          }
+        }
+
+        return result;
+      }
+
+      // Cache the analysis result so parseMovesFromCode can use it
+      let lastAnalysis = null;
+
       function updateRobotTabs() {
         const codeEl = document.getElementById('code-preview');
         if (!codeEl) return;
         const code = codeEl.textContent || '';
 
-        // Match patterns like: robot = wlkatapython.Mirobot_UART()
-        const pattern = /(\w+)\s*=\s*wlkatapython\.Mirobot_UART\s*\(/g;
-        const matches = [];
-        let m;
-        while ((m = pattern.exec(code)) !== null) {
-          matches.push(m[1]); // variable name
-        }
+        // Analyze the code structure
+        const analysis = analyzeRobotCode(code);
+        lastAnalysis = analysis;
 
-        // Remove duplicates, keep order
-        const uniqueVars = [...new Set(matches)];
-
-        // Compare with previous
-        const prev = currentRobotVars;
-        const added = uniqueVars.filter(v => !prev.includes(v));
-        const removed = prev.filter(v => !uniqueVars.includes(v));
-        const renamed = added.length === 1 && removed.length === 1 && added[0] !== removed[0];
-
-        // If only rename (one add, one remove, same count), handle as rename
-        if (added.length === removed.length) {
-          // Could be rename(s). For simplicity, just rebuild.
-        }
+        // Combine direct top-level vars + function-return vars
+        const uniqueVars = [...new Set([...analysis.directVars, ...analysis.funcReturnVars])];
 
         currentRobotVars = uniqueVars;
 
@@ -417,7 +524,10 @@
         // Re-attach click handlers to all view-tab-btns
         attachViewTabHandlers();
 
-        console.log('[RobotTabs] Detected variables:', uniqueVars);
+        console.log('[RobotTabs] Detected variables:', uniqueVars,
+          '| direct:', analysis.directVars,
+          '| funcReturn:', analysis.funcReturnVars,
+          '| robotFuncs:', Object.keys(analysis.robotFunctions));
       }
 
       // Re-attach view tab click handlers (called after rebuilding tabs)
@@ -548,30 +658,18 @@
         state.pausedState = pausedState;
       }
 
-      // Parse code to extract move sequence from homing() and writeangle()
-      // If variableName is provided, only parse moves for that specific variable
-      function parseMovesFromCode(variableName) {
-        const codeEl = document.getElementById('code-preview');
-        if (!codeEl) return [];
-        const code = codeEl.textContent || '';
-
+      // Extract moves from an array of code lines for a given variable name
+      function extractMovesFromLines(lines, varName) {
         const moves = [];
-        const lines = code.split('\n');
-
-        // axisMap: Axis1->pivot1 rotY, Axis2->pivot2 rotZ, etc.
-        // writeangle(0, A1, A2, A3, A4, A5, 0) -> ignore first and last
+        let varPattern = null;
+        if (varName) {
+          const escapedVar = varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          varPattern = new RegExp('(^|\\W)' + escapedVar + '\\.');
+        }
 
         for (const line of lines) {
-          const trimmed = line.trim();
-
-          // If variableName is specified, only match lines where the method is called on this variable
-          // Use regex to match variableName. as a word boundary (not part of another identifier)
-          if (variableName) {
-            const varPattern = new RegExp('(^|\\W)' + variableName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\.');
-            if (!varPattern.test(trimmed)) {
-              continue; // skip lines not for this variable
-            }
-          }
+          const trimmed = (typeof line === 'string') ? line.trim() : '';
+          if (varPattern && !varPattern.test(trimmed)) continue;
 
           // homing() -> all axes 0
           if (/\.homing\s*\(/.test(trimmed)) {
@@ -582,18 +680,95 @@
           const wa = trimmed.match(/\.writeangle\s*\(\s*([^)]+)\s*\)/);
           if (wa) {
             const args = wa[1].split(',').map(s => parseFloat(s.trim()) || 0);
-            // args: [0, A1, A2, A3, A4, A5, 0] -> indices 1..5 are axes
-            const axisValues = {
+            moves.push({
               Axis1: args[1] || 0,
               Axis2: args[2] || 0,
               Axis3: args[3] || 0,
               Axis4: args[4] || 0,
               Axis5: args[5] || 0,
               type: 'writeangle'
-            };
-            moves.push(axisValues);
+            });
+          }
+
+          // writecoordinate / set_wrist_pose / p2p_interpolation with coordinate args
+          const wc = trimmed.match(/\.(writecoordinate|set_wrist_pose|p2p_interpolation)\s*\(\s*([^)]+)\s*\)/);
+          if (wc) {
+            const args = wc[2].split(',').map(s => parseFloat(s.trim()) || 0);
+            moves.push({
+              Axis1: args[0] || 0,
+              Axis2: args[1] || 0,
+              Axis3: args[2] || 0,
+              Axis4: args[3] || 0,
+              Axis5: args[4] || 0,
+              type: wc[1]
+            });
           }
         }
+        return moves;
+      }
+
+      // Parse code to extract move sequence for a specific variable.
+      // For function-return variables (b = getMirobot()), inlines the function body moves
+      // before the variable's own top-level moves.
+      function parseMovesFromCode(variableName) {
+        const codeEl = document.getElementById('code-preview');
+        if (!codeEl) return [];
+        const code = codeEl.textContent || '';
+        const allLines = code.split('\n');
+
+        // Use cached analysis if available, otherwise re-analyze
+        const analysis = lastAnalysis || analyzeRobotCode(code);
+
+        const moves = [];
+
+        // Check if this variable was assigned from a robot-returning function
+        if (variableName && analysis.callerToFunc[variableName]) {
+          const funcName = analysis.callerToFunc[variableName];
+          const funcInfo = analysis.robotFunctions[funcName];
+          if (funcInfo) {
+            // Inline the function body moves (using the internal variable name)
+            const bodyMoves = extractMovesFromLines(funcInfo.bodyLines, funcInfo.internalVar);
+            moves.push(...bodyMoves);
+            console.log('[parseMovesFromCode] Inlined', bodyMoves.length,
+              'moves from function', funcName, 'for variable', variableName);
+          }
+        }
+
+        // Now add the variable's own direct moves from top-level code
+        // (skip lines inside function bodies)
+        if (variableName) {
+          // Collect only top-level lines (not inside any def block)
+          const topLevelLines = [];
+          let insideFunc = false;
+          let funcDefIndent = 0;
+          for (const line of allLines) {
+            const trimmed = line.trim();
+            const defMatch = trimmed.match(/^def\s+\w+\s*\(/);
+            if (defMatch) {
+              insideFunc = true;
+              funcDefIndent = line.search(/\S/);
+              continue;
+            }
+            if (insideFunc) {
+              const lineIndent = line.search(/\S/);
+              if (trimmed.length > 0 && lineIndent <= funcDefIndent) {
+                insideFunc = false;
+                // This line is top-level, fall through
+              } else {
+                continue; // skip function body line
+              }
+            }
+            topLevelLines.push(trimmed);
+          }
+
+          const directMoves = extractMovesFromLines(topLevelLines, variableName);
+          moves.push(...directMoves);
+        } else {
+          // No variable specified, parse all moves (legacy behavior)
+          const allMoves = extractMovesFromLines(allLines, null);
+          moves.push(...allMoves);
+        }
+
         return moves;
       }
 

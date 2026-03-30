@@ -162,7 +162,7 @@ function initPythonGenerator() {
     const methodName = block.getFieldValue('METHOD_NAME');
     const isStatement = !!(block.previousConnection || block.nextConnection);
 
-    if (!instanceName || instanceName === '__NONE__' || !methodName) {
+    if (!instanceName || instanceName === '__NONE__' || !methodName || methodName === '...') {
       return isStatement ? '' : ['None', Blockly.Python.ORDER_ATOMIC];
     }
 
