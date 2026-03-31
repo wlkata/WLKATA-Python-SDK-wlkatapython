@@ -192,7 +192,13 @@ function initFunctionParamBlock() {
           } else if (trimmed.startsWith('def ')) {
             state = 'other_func';
           } else if (line.length > 0 && !isIndented) {
-            topLines.push(line);
+            // Skip lines that call our function (since we inlined its body,
+            // the function is not defined and calling it would crash exec())
+            // Matches: anything = pyFuncName(...) or bare pyFuncName(...)
+            var callPattern = new RegExp('(^|=\\s*)' + pyFuncName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\(');
+            if (!callPattern.test(trimmed)) {
+              topLines.push(line);
+            }
           }
         }
       }

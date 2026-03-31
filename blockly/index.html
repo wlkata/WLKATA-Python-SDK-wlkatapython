@@ -140,7 +140,7 @@
       flex: 0;
       background: #1a1a1a;
       overflow: hidden;
-      border: 4px solid #ff6600;  /* DEBUG: visible orange border */
+      /* border: 4px solid #ff6600;  /* DEBUG: visible orange border */
       visibility: hidden;  /* hidden until Model tab clicked */
     }
     #model-area.visible {
@@ -151,18 +151,37 @@
       width: 100%;
       height: 100%;
     }
-    /* Debug overlay text */
-    #model-debug {
+    /* Animation progress bar */
+    .anim-progress {
       position: absolute;
-      top: 10px;
-      left: 10px;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 1000;
-      color: white;
-      background: rgba(0,0,0,0.7);
-      padding: 8px 12px;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .anim-progress-label {
+      color: #fff;
       font-family: monospace;
       font-size: 12px;
-      pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+    .anim-progress-track {
+      width: 260px;
+      height: 8px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .anim-progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 4px;
+      transition: none;
     }
     /* Output panel tabs (Code/Output only) */
     #output-tabs {
@@ -230,7 +249,7 @@
 
       <!-- Model mode: full-size 3D viewer (scene created lazily on tab click) -->
       <div id="model-area" style="position:relative;">
-        <div id="model-debug">Click "Model" tab to load 3D viewer</div>
+        <!-- progress bars are created per-variable in createModelScene -->
       </div>
     </div>
   </div>
@@ -312,7 +331,7 @@
       const viewBtns = document.querySelectorAll('.view-tab-btn');
       const workspaceArea = document.getElementById('workspace-area');
       const modelArea = document.getElementById('model-area');
-      const modelDebug = document.getElementById('model-debug');
+      // (per-variable progress bars are created in createModelScene)
 
       viewBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -328,8 +347,8 @@
             workspaceArea.style.visibility = 'visible';
             modelArea.classList.remove('visible');
             console.log('[View] Switched to Blockly workspace');
-            // Pause robot animation
-            if (typeof pauseRobotAnimation === 'function') pauseRobotAnimation();
+            // Pause current variable's animation
+            if (currentVariableName && typeof pauseVarAnimation === 'function') pauseVarAnimation(currentVariableName);
             // Fix: Blockly needs resize after container was hidden
             if (typeof getWorkspace === 'function' && typeof Blockly !== 'undefined') {
               Blockly.svgResize(getWorkspace());
@@ -504,10 +523,14 @@
         const viewTabs = document.getElementById('view-tabs');
         if (!viewTabs) return;
 
+        // Remember which tab is currently active before rebuilding
+        const activeBtn = viewTabs.querySelector('.view-tab-btn.active');
+        const activeView = activeBtn ? activeBtn.dataset.view : 'workspace';
+
         // Keep Blockly button, remove others
         viewTabs.innerHTML = '';
         const blocklyBtn = document.createElement('button');
-        blocklyBtn.className = 'view-tab-btn active';
+        blocklyBtn.className = 'view-tab-btn' + (activeView === 'workspace' ? ' active' : '');
         blocklyBtn.dataset.view = 'workspace';
         blocklyBtn.textContent = 'Blockly';
         viewTabs.appendChild(blocklyBtn);
@@ -515,8 +538,9 @@
         // Add one button per detected variable
         uniqueVars.forEach(varName => {
           const btn = document.createElement('button');
-          btn.className = 'view-tab-btn';
-          btn.dataset.view = 'var:' + varName;
+          const viewKey = 'var:' + varName;
+          btn.className = 'view-tab-btn' + (activeView === viewKey ? ' active' : '');
+          btn.dataset.view = viewKey;
           btn.textContent = varName;
           viewTabs.appendChild(btn);
         });
@@ -623,39 +647,26 @@
         state.moveIndex = 0;
         state.pausedState = null;
 
+        // Create per-variable progress bar
+        const progressEl = document.createElement('div');
+        progressEl.className = 'anim-progress';
+        progressEl.innerHTML =
+          '<div class="anim-progress-label"></div>' +
+          '<div class="anim-progress-track"><div class="anim-progress-fill"></div></div>';
+        progressEl.style.display = 'none';
+        modelArea.appendChild(progressEl);
+        state.progressEl = progressEl;
+        state.progressLabel = progressEl.querySelector('.anim-progress-label');
+        state.progressFill = progressEl.querySelector('.anim-progress-fill');
+
         console.log('[A-Frame] Scene created for variable tab:', variableName);
 
-        // After scene is loaded, start animation if code has moves
+        // After scene is loaded, start animation
         setTimeout(() => {
-          // Load this variable's state into globals and start animation
-          loadVariableState(variableName);
-          startRobotAnimation(scene, null, variableName);
+          startVarAnimation(variableName, null);
         }, 500);
 
         return scene;
-      }
-
-      // Load a variable's state into global state variables (context switch)
-      function loadVariableState(variableName) {
-        const state = getVariableState(variableName);
-        animationTimer = state.animationTimer;
-        moveIndex = state.moveIndex;
-        currentPivots = state.currentPivots;
-        currentPresetBase = state.currentPresetBase;
-        moveStartTime = state.moveStartTime;
-        pausedState = state.pausedState;
-        currentVariableName = variableName;
-      }
-
-      // Save current global state into a variable's state (context switch)
-      function saveVariableState(variableName) {
-        const state = getVariableState(variableName);
-        state.animationTimer = animationTimer;
-        state.moveIndex = moveIndex;
-        state.currentPivots = currentPivots;
-        state.currentPresetBase = currentPresetBase;
-        state.moveStartTime = moveStartTime;
-        state.pausedState = pausedState;
       }
 
       // Extract moves from an array of code lines for a given variable name
@@ -772,246 +783,257 @@
         return moves;
       }
 
-      // Animate the robot pivots through a sequence of axis states
-      // Per-variable state storage: each variable has its own scene and animation state
-      let scenes = {}; // map: variableName -> a-scene element
-      let variableStates = {}; // map: variableName -> { moveIndex, pausedState, animationTimer, currentPivots, currentPresetBase, moveStartTime, scene }
-      let currentVariableName = null; // track which variable's tab is active (global context)
-      let lastMovesSignatures = {}; // map: variableName -> JSON string of moves (to detect changes)
+      // ── Per-variable animation system ──
+      // Each variable has its own fully independent animation state.
+      // No shared globals — all state lives in variableStates[varName].
+      let scenes = {};           // map: variableName -> a-scene element
+      let variableStates = {};   // map: variableName -> state object
+      let currentVariableName = null;
+      let lastMovesSignatures = {};
 
-      // Helper: get or create state for a variable
+      const ANIM_CONSTS = { MOVE_DUR: 3000, INTERVAL: 1000, STAY_DUR: 3000 };
+
+      const AXIS_MAP = {
+        pivot1: 'rotY', pivot2: 'rotZ', pivot3: 'rotZ',
+        pivot4: 'rotY', pivot5: 'rotZ'
+      };
+      const PRESET_BASE = {
+        pivot1: { rotX: 0, rotY: 0, rotZ: 0 },
+        pivot2: { rotX: -90, rotY: 0, rotZ: -90 },
+        pivot3: { rotX: 0, rotY: 0, rotZ: 0 },
+        pivot4: { rotX: 0, rotY: 0, rotZ: 0 },
+        pivot5: { rotX: -90, rotY: 0, rotZ: 0 }
+      };
+
       function getVariableState(variableName) {
         if (!variableStates[variableName]) {
           variableStates[variableName] = {
             moveIndex: 0,
-            pausedState: null,
             animationTimer: null,
-            currentPivots: null,
-            currentPresetBase: null,
             moveStartTime: null,
-            scene: null
+            pausedState: null,
+            pivots: null,
+            scene: null,
+            progressEl: null,
+            progressLabel: null,
+            progressFill: null,
+            rafId: null,          // requestAnimationFrame id for progress bar
+            phase: null,          // 'move' | 'interval' | 'stay' | null
+            phaseStart: null,     // timestamp when current phase started
+            phaseDuration: null   // duration of current phase in ms
           };
         }
         return variableStates[variableName];
       }
 
-      // Helper: get a signature string for the moves of a variable (used to detect changes)
       function getMovesSignature(variableName) {
         const moves = parseMovesFromCode(variableName);
-        // Create a simple signature: count + first/last move types
         if (moves.length === 0) return 'empty';
         return JSON.stringify(moves.map(m => ({ type: m.type, A1: m.Axis1, A2: m.Axis2, A3: m.Axis3, A4: m.Axis4, A5: m.Axis5 })));
       }
 
-      function startRobotAnimation(scene, resumeFrom, variableName) {
-        // Clear any previous animation
-        if (animationTimer) {
-          clearTimeout(animationTimer);
-          animationTimer = null;
-        }
-        // Note: moveIndex is NOT reset here - it persists for resume functionality
+      // ── Progress bar helpers ──
+      function tickProgress(varName) {
+        const st = getVariableState(varName);
+        if (!st.phase || !st.phaseStart || !st.progressFill || !st.progressLabel) return;
+        const now = Date.now();
+        const elapsed = now - st.phaseStart;
+        const dur = st.phaseDuration || 1;
+        const frac = Math.min(elapsed / dur, 1);
+        const elSec = (elapsed / 1000).toFixed(1);
+        const durSec = (dur / 1000).toFixed(1);
 
-        // Use provided variableName, or fall back to currentVariableName
-        const varName = variableName || currentVariableName;
+        st.progressFill.style.width = (frac * 100) + '%';
+
+        if (st.phase === 'move') {
+          st.progressFill.style.background = '#4CAF50';
+          st.progressLabel.textContent = 'Action ' + st.moveDisplay + '  ' + elSec + 's / ' + durSec + 's';
+        } else if (st.phase === 'interval') {
+          st.progressFill.style.background = '#FF9800';
+          st.progressLabel.textContent = 'Interval  ' + elSec + 's / ' + durSec + 's';
+        } else if (st.phase === 'stay') {
+          st.progressFill.style.background = '#2196F3';
+          st.progressLabel.textContent = 'Reset  ' + elSec + 's / ' + durSec + 's';
+        }
+
+        if (frac < 1) {
+          st.rafId = requestAnimationFrame(function() { tickProgress(varName); });
+        }
+      }
+
+      function startPhase(varName, phase, duration, moveDisplay) {
+        const st = getVariableState(varName);
+        if (st.rafId) { cancelAnimationFrame(st.rafId); st.rafId = null; }
+        st.phase = phase;
+        st.phaseStart = Date.now();
+        st.phaseDuration = duration;
+        st.moveDisplay = moveDisplay || '';
+        if (st.progressEl) st.progressEl.style.display = '';
+        st.rafId = requestAnimationFrame(function() { tickProgress(varName); });
+      }
+
+      function stopProgress(varName) {
+        const st = getVariableState(varName);
+        if (st.rafId) { cancelAnimationFrame(st.rafId); st.rafId = null; }
+        st.phase = null;
+        if (st.progressFill) st.progressFill.style.width = '0%';
+        if (st.progressLabel) st.progressLabel.textContent = '';
+      }
+
+      // ── Core animation -- fully self-contained per variable ──
+      function startVarAnimation(varName, resumeFrom) {
+        const st = getVariableState(varName);
+        const scene = st.scene;
+        if (!scene) return;
+
+        if (st.animationTimer) { clearTimeout(st.animationTimer); st.animationTimer = null; }
+        stopProgress(varName);
+
         const moves = parseMovesFromCode(varName);
         if (moves.length === 0) {
-          const debugDiv = modelArea.querySelector('#model-debug');
-          if (debugDiv) debugDiv.textContent = 'No moves in code';
+          if (st.progressEl) st.progressEl.style.display = 'none';
           return;
         }
 
-        // Get pivot entities from scene
-        const pivots = {};
-        for (let i = 1; i <= 5; i++) {
-          pivots[`pivot${i}`] = scene.querySelector(`#pivot${i}`);
+        // Get pivots from THIS variable's scene
+        if (!st.pivots) {
+          st.pivots = {};
+          for (let i = 1; i <= 5; i++) {
+            st.pivots['pivot' + i] = scene.querySelector('#pivot' + i);
+          }
         }
-        currentPivots = pivots;
-
-        // axisMap: which axis each pivot rotates on
-        const axisMap = {
-          pivot1: 'rotY',
-          pivot2: 'rotZ',
-          pivot3: 'rotZ',
-          pivot4: 'rotY',
-          pivot5: 'rotZ'
-        };
-
-        // presetBase for base rotations
-        const presetBase = {
-          pivot1: { rotX: 0, rotY: 0, rotZ: 0 },
-          pivot2: { rotX: -90, rotY: 0, rotZ: -90 },
-          pivot3: { rotX: 0, rotY: 0, rotZ: 0 },
-          pivot4: { rotX: 0, rotY: 0, rotZ: 0 },
-          pivot5: { rotX: -90, rotY: 0, rotZ: 0 }
-        };
-        currentPresetBase = presetBase;
-
-        const debugDiv = modelArea.querySelector('#model-debug');
-
-        function updateProgress(text) {
-          if (debugDiv) debugDiv.textContent = text;
-        }
+        const pivots = st.pivots;
 
         function applyAxisState(axisValues, durationMs) {
-          moveStartTime = Date.now(); // track when this move started
-          // Animate each pivot from current to target rotation
-          for (const pivotId of Object.keys(axisMap)) {
+          st.moveStartTime = Date.now();
+          for (const pivotId of Object.keys(AXIS_MAP)) {
             const pivot = pivots[pivotId];
             if (!pivot) continue;
-            const axis = axisMap[pivotId]; // rotY or rotZ
-            const base = presetBase[pivotId] || { rotX: 0, rotY: 0, rotZ: 0 };
-            const axisNum = pivotId.slice(-1); // "1".."5"
-            const targetOffset = axisValues["Axis" + axisNum] || 0;
-
-            // Build target rotation string
-            let targetRot;
-            if (axis === 'rotY') {
-              targetRot = `${base.rotX} ${base.rotY + targetOffset} ${base.rotZ}`;
-            } else { // rotZ
-              targetRot = `${base.rotX} ${base.rotY} ${base.rotZ + targetOffset}`;
-            }
-            // Use A-Frame animation for smooth transition
-            pivot.setAttribute('animation', `property: rotation; to: ${targetRot}; dur: ${durationMs}; easing: easeInOutQuad`);
+            const axis = AXIS_MAP[pivotId];
+            const base = PRESET_BASE[pivotId];
+            const axisNum = pivotId.slice(-1);
+            const offset = axisValues['Axis' + axisNum] || 0;
+            const targetRot = axis === 'rotY'
+              ? `${base.rotX} ${base.rotY + offset} ${base.rotZ}`
+              : `${base.rotX} ${base.rotY} ${base.rotZ + offset}`;
+            pivot.setAttribute('animation',
+              `property: rotation; to: ${targetRot}; dur: ${durationMs}; easing: easeInOutQuad`);
           }
         }
 
         function resetToHome() {
-          // Snap directly to home (no animation)
-          for (const pivotId of Object.keys(axisMap)) {
+          for (const pivotId of Object.keys(AXIS_MAP)) {
             const pivot = pivots[pivotId];
             if (!pivot) continue;
-            const base = presetBase[pivotId] || { rotX: 0, rotY: 0, rotZ: 0 };
+            const base = PRESET_BASE[pivotId];
             pivot.removeAttribute('animation');
             pivot.setAttribute('rotation', `${base.rotX} ${base.rotY} ${base.rotZ}`);
           }
         }
 
-        // Note: moveIndex is declared outside (persistent for resume)
-        const MOVE_DUR = 3000; // 3 seconds per move
-        const INTERVAL = 1000; // 1 second between moves
-        const STAY_DUR = 3000; // 3 seconds stay after all moves
-
         function runSequence() {
-          if (moveIndex >= moves.length) {
-            // All moves done, stay 3s, then reset
-            updateProgress('All moves done. Resetting...');
-            animationTimer = setTimeout(() => {
+          if (st.moveIndex >= moves.length) {
+            // All done -- show reset countdown, then loop
+            startPhase(varName, 'stay', ANIM_CONSTS.STAY_DUR);
+            st.animationTimer = setTimeout(function() {
               resetToHome();
-              moveIndex = 0;
-              animationTimer = setTimeout(runSequence, 100);
-            }, STAY_DUR);
+              st.moveIndex = 0;
+              st.animationTimer = setTimeout(runSequence, 100);
+            }, ANIM_CONSTS.STAY_DUR);
             return;
           }
 
-          const move = moves[moveIndex];
-          const percent = Math.round(((moveIndex) / moves.length) * 100);
-          updateProgress(`Move ${moveIndex + 1}/${moves.length} (${percent}%)`);
-          applyAxisState(move, MOVE_DUR);
+          // Move phase
+          const move = moves[st.moveIndex];
+          const label = (st.moveIndex + 1) + '/' + moves.length;
+          startPhase(varName, 'move', ANIM_CONSTS.MOVE_DUR, label);
+          applyAxisState(move, ANIM_CONSTS.MOVE_DUR);
+          st.moveIndex++;
 
-          moveIndex++;
-          animationTimer = setTimeout(runSequence, MOVE_DUR + INTERVAL);
+          // After move completes -> interval phase -> next move
+          st.animationTimer = setTimeout(function() {
+            startPhase(varName, 'interval', ANIM_CONSTS.INTERVAL);
+            st.animationTimer = setTimeout(runSequence, ANIM_CONSTS.INTERVAL);
+          }, ANIM_CONSTS.MOVE_DUR);
         }
 
-        // --- Resume from exact time if resumeFrom provided ---
-        if (resumeFrom && resumeFrom.elapsedInMove < MOVE_DUR && resumeFrom.moveIndex < moves.length) {
+        // Resume from paused state
+        if (resumeFrom && resumeFrom.elapsedInMove < ANIM_CONSTS.MOVE_DUR
+            && resumeFrom.moveIndex < moves.length) {
           const resumeMove = moves[resumeFrom.moveIndex];
-          const frac = resumeFrom.elapsedInMove / MOVE_DUR;
-          const remaining = MOVE_DUR - resumeFrom.elapsedInMove;
+          const frac = resumeFrom.elapsedInMove / ANIM_CONSTS.MOVE_DUR;
+          const remaining = ANIM_CONSTS.MOVE_DUR - resumeFrom.elapsedInMove;
 
-          // Set each pivot to mid-pose (lerp base -> target), then animate remaining
-          for (const pivotId of Object.keys(axisMap)) {
+          for (const pivotId of Object.keys(AXIS_MAP)) {
             const pivot = pivots[pivotId];
             if (!pivot) continue;
-            const axis = axisMap[pivotId];
-            const base = presetBase[pivotId] || { rotX: 0, rotY: 0, rotZ: 0 };
+            const axis = AXIS_MAP[pivotId];
+            const base = PRESET_BASE[pivotId];
             const axisNum = pivotId.slice(-1);
-            const targetOffset = resumeMove["Axis" + axisNum] || 0;
-
-            let targetRotStr, baseRotStr;
+            const offset = resumeMove['Axis' + axisNum] || 0;
             if (axis === 'rotY') {
-              const baseY = base.rotY;
-              const targetY = base.rotY + targetOffset;
-              const curY = baseY + (targetY - baseY) * frac;
-              baseRotStr = `${base.rotX} ${baseY} ${base.rotZ}`;
-              targetRotStr = `${base.rotX} ${targetY} ${base.rotZ}`;
-              pivot.setAttribute('rotation', `${base.rotX} ${curY} ${base.rotZ}`);
-            } else { // rotZ
-              const baseZ = base.rotZ;
-              const targetZ = base.rotZ + targetOffset;
-              const curZ = baseZ + (targetZ - baseZ) * frac;
-              baseRotStr = `${base.rotX} ${base.rotY} ${baseZ}`;
-              targetRotStr = `${base.rotX} ${base.rotY} ${targetZ}`;
-              pivot.setAttribute('rotation', `${base.rotX} ${base.rotY} ${curZ}`);
+              const cur = base.rotY + offset * frac;
+              pivot.setAttribute('rotation', `${base.rotX} ${cur} ${base.rotZ}`);
+              pivot.setAttribute('animation',
+                `property: rotation; to: ${base.rotX} ${base.rotY + offset} ${base.rotZ}; dur: ${remaining}; easing: easeInOutQuad`);
+            } else {
+              const cur = base.rotZ + offset * frac;
+              pivot.setAttribute('rotation', `${base.rotX} ${base.rotY} ${cur}`);
+              pivot.setAttribute('animation',
+                `property: rotation; to: ${base.rotX} ${base.rotY} ${base.rotZ + offset}; dur: ${remaining}; easing: easeInOutQuad`);
             }
-            // Start animation from current (mid) position to target with remaining time
-            pivot.setAttribute('animation', `property: rotation; to: ${targetRotStr}; dur: ${remaining}; easing: easeInOutQuad`);
           }
+          st.moveIndex = resumeFrom.moveIndex + 1;
+          st.moveStartTime = Date.now() - resumeFrom.elapsedInMove;
+          // Resume progress bar mid-phase
+          st.phase = 'move';
+          st.phaseStart = Date.now() - resumeFrom.elapsedInMove;
+          st.phaseDuration = ANIM_CONSTS.MOVE_DUR;
+          st.moveDisplay = (resumeFrom.moveIndex + 1) + '/' + moves.length;
+          if (st.progressEl) st.progressEl.style.display = '';
+          st.rafId = requestAnimationFrame(function() { tickProgress(varName); });
 
-          // After remaining time completes, continue to next move
-          moveIndex = resumeFrom.moveIndex + 1;
-          moveStartTime = Date.now() - resumeFrom.elapsedInMove; // adjust so elapsed is correct
-          const percent = Math.round(((resumeFrom.moveIndex) / moves.length) * 100);
-          updateProgress(`Move ${resumeFrom.moveIndex + 1}/${moves.length} (${percent}%) [resumed]`);
-          animationTimer = setTimeout(runSequence, remaining + INTERVAL);
-          console.log('[Animation] Resumed from', resumeFrom.elapsedInMove, 'ms into move', resumeFrom.moveIndex + 1);
+          st.animationTimer = setTimeout(function() {
+            startPhase(varName, 'interval', ANIM_CONSTS.INTERVAL);
+            st.animationTimer = setTimeout(runSequence, ANIM_CONSTS.INTERVAL);
+          }, remaining);
           return;
         }
 
-        // --- Normal start (or resumeFrom invalid/expired) ---
-        updateProgress('Starting animation...');
-        setTimeout(() => {
-          runSequence();
-        }, 500);
+        // Normal start
+        st.animationTimer = setTimeout(runSequence, 500);
       }
 
-      // Resume animation from paused state (calls startRobotAnimation with resumeFrom)
-      function resumeRobotAnimation(scene, paused, variableName) {
-        if (paused && paused.elapsedInMove < 3000 && paused.moveIndex != null) {
-          startRobotAnimation(scene, paused, variableName);
-        } else {
-          // No valid pause state, start fresh (moveIndex persists)
-          startRobotAnimation(scene, null, variableName);
-        }
-      }
-
-      // Pause animation (called when switching away from model view)
-      // Saves current state to the current variable's state storage
-      function pauseRobotAnimation() {
+      function pauseVarAnimation(varName) {
+        if (!varName) return;
+        const st = getVariableState(varName);
         const now = Date.now();
-        const elapsed = moveStartTime ? (now - moveStartTime) : 0;
-        // Determine which move we were animating (moveIndex was incremented after applyAxisState)
-        // If moveIndex > 0 and <= moves.length, we were on move (moveIndex-1)
-        const moves = parseMovesFromCode(currentVariableName);
-        let animatingMoveIdx = (moveIndex > 0 && moveIndex <= moves.length) ? (moveIndex - 1) : null;
+        const elapsed = st.moveStartTime ? (now - st.moveStartTime) : 0;
+        const moves = parseMovesFromCode(varName);
+        const animIdx = (st.moveIndex > 0 && st.moveIndex <= moves.length) ? (st.moveIndex - 1) : null;
 
-        if (animationTimer) {
-          clearTimeout(animationTimer);
-          animationTimer = null;
-        }
-        // Stop any ongoing animations on pivots
-        if (currentPivots) {
-          for (const pivotId of Object.keys(currentPivots)) {
-            const pivot = currentPivots[pivotId];
+        if (st.animationTimer) { clearTimeout(st.animationTimer); st.animationTimer = null; }
+        stopProgress(varName);
+        if (st.progressEl) st.progressEl.style.display = 'none';
+
+        // Stop A-Frame animations on pivots
+        if (st.pivots) {
+          for (const pivotId of Object.keys(st.pivots)) {
+            const pivot = st.pivots[pivotId];
             if (pivot) pivot.removeAttribute('animation');
           }
         }
 
-        // Save pause state for resume
-        if (animatingMoveIdx !== null && elapsed < 3000) {
-          pausedState = {
-            moveIndex: animatingMoveIdx,
-            elapsedInMove: elapsed,
-            totalMoves: moves.length
-          };
-          console.log('[Animation] Paused at move', animatingMoveIdx + 1, 'elapsed', elapsed, 'ms');
+        if (animIdx !== null && elapsed < ANIM_CONSTS.MOVE_DUR) {
+          st.pausedState = { moveIndex: animIdx, elapsedInMove: elapsed };
         } else {
-          pausedState = null;
+          st.pausedState = null;
         }
+      }
 
-        // Save current state to the current variable's storage
-        if (currentVariableName) {
-          saveVariableState(currentVariableName);
-        }
+      function resumeVarAnimation(varName) {
+        const st = getVariableState(varName);
+        startVarAnimation(varName, st.pausedState);
       }
 
       function handleViewTabClick(btn) {
@@ -1026,8 +1048,8 @@
           workspaceArea.classList.remove('hidden');
           modelArea.classList.remove('visible');
           console.log('[View] Switched to Blockly workspace');
-          // Pause and save current variable's state
-          if (typeof pauseRobotAnimation === 'function') pauseRobotAnimation();
+          // Pause the current variable's animation
+          if (currentVariableName) pauseVarAnimation(currentVariableName);
           // Fix: Blockly needs resize after container was hidden
           if (typeof getWorkspace === 'function' && typeof Blockly !== 'undefined') {
             Blockly.svgResize(getWorkspace());
@@ -1038,75 +1060,54 @@
           workspaceArea.classList.add('hidden');
           modelArea.classList.add('visible');
 
-          // Extract variable name from view (e.g., "var:robot1" -> "robot1")
-          const variableName = view.slice(4); // remove "var:" prefix
+          const variableName = view.slice(4);
+          console.log('[View] Switched to Model view for:', variableName);
 
-          console.log('[View] Switched to Model view for:', view, 'variable:', variableName);
-
-          // Save current variable's state before switching (pause saves to currentVariableName's state)
+          // Pause previous variable's animation (if different)
           if (currentVariableName && currentVariableName !== variableName) {
-            if (typeof pauseRobotAnimation === 'function') pauseRobotAnimation();
+            pauseVarAnimation(currentVariableName);
           }
+          currentVariableName = variableName;
 
-          // Check if moves have changed for this variable
+          // Check if moves have changed
           const currentSig = getMovesSignature(variableName);
           const lastSig = lastMovesSignatures[variableName];
           const movesChanged = (currentSig !== lastSig);
-          lastMovesSignatures[variableName] = currentSig; // update stored signature
+          lastMovesSignatures[variableName] = currentSig;
 
-          // Ensure scene exists for this variable (lazy create)
+          // Ensure scene exists (lazy create)
           const scene = createModelScene(variableName);
 
-          // Hide all scenes, show only this one
+          // Hide all scenes + progress bars, show only this one
           for (const vname of Object.keys(scenes)) {
             scenes[vname].style.display = (vname === variableName) ? 'block' : 'none';
+            const vst = getVariableState(vname);
+            if (vst.progressEl) vst.progressEl.style.display = (vname === variableName) ? '' : 'none';
           }
 
-          // Load this variable's state into globals
-          loadVariableState(variableName);
-
           if (movesChanged) {
-            // Moves changed (or order changed) - reset to initial position and start from beginning
-            console.log('[Animation] Moves changed for:', variableName, '- resetting to initial');
-            const state = getVariableState(variableName);
-            state.moveIndex = 0;
-            state.pausedState = null;
-            loadVariableState(variableName); // reload after reset
+            console.log('[Animation] Moves changed for:', variableName, '- resetting');
+            const st = getVariableState(variableName);
+            st.moveIndex = 0;
+            st.pausedState = null;
 
-            // Reset pivots to home position visually on this variable's scene
-            const axisMap = {
-              pivot1: 'rotY',
-              pivot2: 'rotZ',
-              pivot3: 'rotZ',
-              pivot4: 'rotY',
-              pivot5: 'rotZ'
-            };
-            const presetBase = {
-              pivot1: { rotX: 0, rotY: 0, rotZ: 0 },
-              pivot2: { rotX: -90, rotY: 0, rotZ: -90 },
-              pivot3: { rotX: 0, rotY: 0, rotZ: 0 },
-              pivot4: { rotX: 0, rotY: 0, rotZ: 0 },
-              pivot5: { rotX: -90, rotY: 0, rotZ: 0 }
-            };
-            for (const pivotId of Object.keys(axisMap)) {
-              const pivot = scene.querySelector(`#${pivotId}`);
+            // Reset pivots to home
+            const pivots = st.pivots || {};
+            for (const pivotId of Object.keys(AXIS_MAP)) {
+              const pivot = pivots[pivotId] || scene.querySelector('#' + pivotId);
               if (pivot) {
-                const base = presetBase[pivotId] || { rotX: 0, rotY: 0, rotZ: 0 };
+                const base = PRESET_BASE[pivotId];
                 pivot.removeAttribute('animation');
                 pivot.setAttribute('rotation', `${base.rotX} ${base.rotY} ${base.rotZ}`);
               }
             }
-            startRobotAnimation(scene, null, variableName);
+            startVarAnimation(variableName, null);
           } else {
-            // Moves unchanged - resume from this variable's paused state
-            console.log('[Animation] Resuming from paused state for:', variableName);
-            resumeRobotAnimation(scene, pausedState, variableName);
+            console.log('[Animation] Resuming for:', variableName);
+            resumeVarAnimation(variableName);
           }
 
-          // Trigger resize
-          setTimeout(() => {
-            window.dispatchEvent(new Event('resize'));
-          }, 100);
+          setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
         }
       }
 
@@ -1144,9 +1145,7 @@
           scenes.forEach(scene => {
             scene.addEventListener('loaded', () => {
               console.log('[A-Frame] Scene loaded event fired for:', scene.id);
-              if (modelDebug) {
-                modelDebug.textContent = 'A-Frame READY ✓ | Orange box should be spinning!';
-              }
+              console.log('[A-Frame] Scene ready:', scene.id);
             });
           });
         });

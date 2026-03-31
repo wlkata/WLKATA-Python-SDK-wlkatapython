@@ -154,6 +154,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, 'resources', 'icons', 'icon.png'),
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -163,7 +164,7 @@ function createWindow() {
   mainWindow.loadFile('index.html');
 
   // Open DevTools to see errors (remove this line for production)
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 
   // Replay any startup logs that were collected before the window opened,
   // and communicate the server port to the renderer.

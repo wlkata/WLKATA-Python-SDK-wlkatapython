@@ -217,36 +217,9 @@ function initPythonGenerator() {
           params.push(pName);
         }
 
-        // Collect global declarations: all workspace variables that are
-        // NOT function parameters and NOT local variables.
-        const allVarModels = Blockly.Variables.allUsedVarModels(block.workspace) || [];
-        const localNames = new Set(paramVars);
-        // Also exclude local variables declared via the "V" icon
-        const blockLocalVars = block.localVars_ || [];
-        for (let li = 0; li < blockLocalVars.length; li++) {
-          localNames.add(blockLocalVars[li]);
-        }
-        const globals = [];
-        for (const vm of allVarModels) {
-          const name = vm.getName();
-          if (!localNames.has(name)) {
-            globals.push(Blockly.Python.getVariableName
-              ? Blockly.Python.getVariableName(name)
-              : name);
-          }
-        }
-
-        // Developer variables
-        const devVars = Blockly.Variables.allDeveloperVariables(block.workspace) || [];
-        for (const dv of devVars) {
-          globals.push(Blockly.Python.nameDB_
-            ? Blockly.Python.nameDB_.getName(dv, Blockly.Names.DEVELOPER_VARIABLE_TYPE || 'DEVELOPER_VARIABLE')
-            : dv);
-        }
-
-        const globalDecl = globals.length
-          ? Blockly.Python.INDENT + 'global ' + globals.join(', ') + '\n'
-          : '';
+        // No global declarations in custom functions — the user wants
+        // simplified code without any "global ..." lines.
+        const globalDecl = '';
 
         // Statement prefix / suffix
         let prefix = '';
