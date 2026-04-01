@@ -183,6 +183,143 @@
       border-radius: 4px;
       transition: none;
     }
+    /* Debug mode: gray out all blocks, disable interaction */
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .blocklyPath {
+      fill-opacity: 0.25 !important;
+      stroke-opacity: 0.25 !important;
+    }
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .blocklyText {
+      opacity: 0.25 !important;
+    }
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .blocklyEditableField > rect {
+      fill-opacity: 0.25 !important;
+    }
+    /* Only the active block (and its value inputs) stay fully visible */
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .debug-active > .blocklyPath {
+      fill-opacity: 1 !important;
+      stroke-opacity: 1 !important;
+    }
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .debug-active > .blocklyEditableField > rect,
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .debug-active > .blocklyNonEditableField > rect {
+      fill-opacity: 1 !important;
+    }
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .debug-active > text.blocklyText,
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .debug-active > g > text.blocklyText,
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .debug-active > .blocklyEditableField > text,
+    #blocklyDiv.debug-mode .blocklyBlockCanvas .debug-active > .blocklyNonEditableField > text {
+      opacity: 1 !important;
+    }
+    /* Disable pointer events on the workspace during debug */
+    #blocklyDiv.debug-mode .blocklyBlockCanvas {
+      pointer-events: none;
+    }
+    #blocklyDiv.debug-mode .blocklyToolboxDiv {
+      pointer-events: none;
+      opacity: 0.4;
+    }
+    #blocklyDiv.debug-mode .blocklyFlyout {
+      pointer-events: none;
+      opacity: 0.4;
+    }
+    #blocklyDiv.debug-mode .blocklyTrash {
+      pointer-events: none;
+      opacity: 0.3;
+    }
+    /* Subtle background tint to reinforce locked state */
+    #blocklyDiv.debug-mode .blocklyMainBackground {
+      fill: #e8e8e8 !important;
+    }
+
+    /* Debug toolbar buttons */
+    .debug-btn {
+      background: #607D8B;
+      display: none;
+    }
+    .debug-btn:hover {
+      background: #455A64;
+    }
+    .debug-btn.visible {
+      display: inline-block;
+    }
+    #stepBtn { background: #FF9800; }
+    #stepBtn:hover { background: #F57C00; }
+    #continueBtn { background: #4CAF50; }
+    #continueBtn:hover { background: #388E3C; }
+    #stopDebugBtn { background: #f44336; }
+    #stopDebugBtn:hover { background: #d32f2f; }
+
+    /* Debug variables panel */
+    #debug-panel {
+      display: none;
+      flex-direction: column;
+      border-top: 1px solid #ccc;
+      max-height: 50%;
+      overflow: hidden;
+    }
+    #debug-panel.active {
+      display: flex;
+    }
+    #debug-panel-header {
+      padding: 8px 10px;
+      background: #e8eaf6;
+      font-weight: bold;
+      font-size: 13px;
+      color: #283593;
+      border-bottom: 1px solid #c5cae9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #debug-panel-header .debug-line-info {
+      font-weight: normal;
+      font-size: 12px;
+      color: #5c6bc0;
+    }
+    #debug-variables {
+      flex: 1;
+      overflow: auto;
+      padding: 6px 10px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+    }
+    .debug-var-row {
+      display: flex;
+      padding: 3px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .debug-var-name {
+      color: #1565C0;
+      font-weight: bold;
+      min-width: 80px;
+      margin-right: 8px;
+    }
+    .debug-var-value {
+      color: #333;
+      flex: 1;
+      word-break: break-all;
+    }
+    .debug-var-type {
+      color: #999;
+      font-size: 11px;
+      margin-left: 6px;
+    }
+    #debug-callstack {
+      padding: 6px 10px;
+      border-top: 1px solid #e0e0e0;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      color: #666;
+      max-height: 80px;
+      overflow: auto;
+    }
+    .callstack-frame {
+      padding: 2px 0;
+    }
+    .callstack-frame.current {
+      color: #1565C0;
+      font-weight: bold;
+    }
+
     /* Output panel tabs (Code/Output only) */
     #output-tabs {
       display: flex;
@@ -222,7 +359,11 @@
 <body>
   <div id="app">
     <div id="toolbar">
-      <button id="runBtn" onclick="runCode()">▶ Run Code</button>
+      <button id="runBtn" onclick="runCode()">▶ Run</button>
+      <button id="debugBtn" onclick="debugStart()">⏯ Step Run</button>
+      <button id="stepBtn" class="debug-btn" onclick="debugStep()">⏭ Step</button>
+      <button id="continueBtn" class="debug-btn" onclick="debugContinue()">▶ Continue</button>
+      <button id="stopDebugBtn" class="debug-btn" onclick="debugStop()">⏹ Stop</button>
       <button id="clearBtn" onclick="clearWorkspace()">Clear Workspace</button>
       <button id="exportBtn" onclick="exportBlocks()">Export Blocks</button>
       <button id="importBtn" onclick="importBlocks()">Import Blocks</button>
@@ -244,6 +385,15 @@
           <div id="code-preview"></div>
           <div id="output-header">Output</div>
           <div id="output-content"></div>
+          <!-- Debug panel: variables + call stack (shown during debug sessions) -->
+          <div id="debug-panel">
+            <div id="debug-panel-header">
+              <span>Variables</span>
+              <span class="debug-line-info" id="debug-line-info"></span>
+            </div>
+            <div id="debug-variables"></div>
+            <div id="debug-callstack"></div>
+          </div>
         </div>
       </div>
 
@@ -318,6 +468,7 @@
   <script src="js/workspace/instanceMethods.js"></script>
   <script src="js/workspace/codePreview.js"></script>
   <script src="js/workspace/execution.js"></script>
+  <script src="js/workspace/debugExecution.js"></script>
   <script src="js/workspace/importExport.js"></script>
   <script src="js/workspace/management.js"></script>
 

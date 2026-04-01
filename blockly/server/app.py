@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from .executor import CodeExecutor
 from .inspector import FunctionInspector, InstanceInspector
+from .debugger import StepDebugger
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -135,6 +136,82 @@ def inspect_instance_method():
             return jsonify({'success': False, 'error': 'No method name provided'}), 400
 
         result = InstanceInspector.inspect_instance_method(code, instance_name, method_name)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+
+
+@app.route('/debug/start', methods=['POST'])
+def debug_start():
+    """Start a step-debug session."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        code = data.get('code', '')
+        if not code:
+            return jsonify({'success': False, 'error': 'No code provided'}), 400
+
+        result = StepDebugger.start(code)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+
+
+@app.route('/debug/step', methods=['POST'])
+def debug_step():
+    """Advance one line in a debug session."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        session_id = data.get('session_id', '')
+        if not session_id:
+            return jsonify({'success': False, 'error': 'No session_id provided'}), 400
+
+        result = StepDebugger.step(session_id)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+
+
+@app.route('/debug/continue', methods=['POST'])
+def debug_continue():
+    """Continue running code without pausing."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        session_id = data.get('session_id', '')
+        if not session_id:
+            return jsonify({'success': False, 'error': 'No session_id provided'}), 400
+
+        result = StepDebugger.continue_run(session_id)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+
+
+@app.route('/debug/stop', methods=['POST'])
+def debug_stop():
+    """Stop and clean up a debug session."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON data provided'}), 400
+
+        session_id = data.get('session_id', '')
+        if not session_id:
+            return jsonify({'success': False, 'error': 'No session_id provided'}), 400
+
+        result = StepDebugger.stop(session_id)
         return jsonify(result)
 
     except Exception as e:

@@ -7,6 +7,59 @@
  * Initialize Python code generators for custom blocks.
  * This function should be called after Blockly.Python is available.
  */
+/**
+ * Generate code with block-marker comments, then strip them out.
+ *
+ * Uses Blockly.Python.STATEMENT_PREFIX to inject "# __BLOCK__:blockId\n"
+ * before every statement.  After generation we:
+ *   1. Parse the markers to build { cleanLineNum -> blockId }
+ *   2. Strip the marker lines to produce clean Python code
+ *
+ * Returns { code: string, lineToBlock: { lineNum: blockId } }
+ *   - code has NO marker comments (safe to send to the server)
+ *   - lineToBlock uses 1-based line numbers of the clean code
+ */
+function generateCodeWithMap(workspace) {
+  if (!workspace || !Blockly.Python) return { code: '', lineToBlock: {} };
+
+  // Temporarily set STATEMENT_PREFIX to inject markers
+  var oldPrefix = Blockly.Python.STATEMENT_PREFIX;
+  Blockly.Python.STATEMENT_PREFIX = '# __BLOCK__:%1\n';
+
+  var rawCode = Blockly.Python.workspaceToCode(workspace);
+
+  // Restore
+  Blockly.Python.STATEMENT_PREFIX = oldPrefix || null;
+
+  // Parse: split into lines, build map, strip markers
+  var rawLines = rawCode.split('\n');
+  var cleanLines = [];
+  var lineToBlock = {};
+  var currentBlockId = null;
+
+  for (var i = 0; i < rawLines.length; i++) {
+    var line = rawLines[i];
+    var trimmed = line.trim();
+
+    // Check if this is a marker line
+    if (trimmed.indexOf('# __BLOCK__:') === 0) {
+      currentBlockId = trimmed.substring(12).replace(/^'|'$/g, ''); // strip quotes added by injectId
+      continue; // don't include marker in clean code
+    }
+
+    cleanLines.push(line);
+    var cleanLineNum = cleanLines.length; // 1-based
+
+    // Bind this line to the most recent block marker
+    if (currentBlockId && trimmed !== '') {
+      lineToBlock[cleanLineNum] = currentBlockId;
+      currentBlockId = null; // consumed — next line needs its own marker
+    }
+  }
+
+  return { code: cleanLines.join('\n'), lineToBlock: lineToBlock };
+}
+
 function initPythonGenerator() {
   if (!Blockly.Python) {
     console.error('Blockly.Python not available');
