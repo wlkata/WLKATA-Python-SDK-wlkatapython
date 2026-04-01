@@ -354,11 +354,128 @@
     .panel-tab-content.active {
       display: flex;
     }
+
+    /* Saved Functions panel */
+    #saved-functions-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .saved-func-card {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      cursor: grab;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      position: relative;
+    }
+    .saved-func-card:hover {
+      border-color: #2196F3;
+      box-shadow: 0 2px 8px rgba(33,150,243,0.15);
+    }
+    .saved-func-card:active {
+      cursor: grabbing;
+    }
+    .saved-func-card .func-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+    }
+    .saved-func-card .func-params {
+      font-size: 12px;
+      color: #888;
+      margin-top: 2px;
+    }
+    .saved-func-card .func-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 4px;
+    }
+    .saved-func-card .func-actions button {
+      padding: 2px 8px;
+      font-size: 11px;
+      border-radius: 3px;
+      background: #eee;
+      color: #555;
+      border: 1px solid #ccc;
+      cursor: pointer;
+    }
+    .saved-func-card .func-actions button:hover {
+      background: #ddd;
+    }
+    .saved-func-card .func-actions .delete-btn:hover {
+      background: #ffebee;
+      color: #d32f2f;
+      border-color: #ef9a9a;
+    }
+    .saved-func-empty {
+      text-align: center;
+      color: #999;
+      padding: 30px 10px;
+      font-size: 13px;
+    }
+    /* Workspace group headers in Saved Functions */
+    .saved-func-group {
+      margin-bottom: 4px;
+    }
+    .saved-func-group-header {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      background: #e8eaf6;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: #37474f;
+      gap: 6px;
+    }
+    .saved-func-group-header:hover {
+      background: #c5cae9;
+    }
+    .saved-func-group-header.current {
+      background: #bbdefb;
+      color: #0d47a1;
+    }
+    .saved-func-group-header .group-toggle {
+      font-size: 10px;
+      width: 14px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .saved-func-group-header .group-name {
+      flex: 1;
+    }
+    .saved-func-group-header .group-badge {
+      font-size: 10px;
+      background: #2196F3;
+      color: #fff;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+    .saved-func-group-header .group-count {
+      font-size: 11px;
+      color: #999;
+      background: #f0f0f0;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+    .saved-func-group-cards {
+      padding: 4px 0 4px 12px;
+    }
   </style>
 </head>
 <body>
   <div id="app">
     <div id="toolbar">
+      <span id="workspace-name-indicator" title="Current workspace" style="font-weight:600;font-size:14px;color:#333;padding:0 8px;cursor:pointer;border-right:1px solid #ccc;margin-right:4px;" onclick="switchWorkspace()"></span>
+      <button id="saveBtn" onclick="saveWorkspaceBlocks()" title="Save workspace (Ctrl+S)">💾 Save</button>
       <button id="runBtn" onclick="runCode()">▶ Run</button>
       <button id="debugBtn" onclick="debugStart()">⏯ Step Run</button>
       <button id="stepBtn" class="debug-btn" onclick="debugStep()">⏭ Step</button>
@@ -380,19 +497,32 @@
       <div id="workspace-area">
         <div id="blocklyDiv"></div>
         <div id="output-panel">
-          <!-- Top-down layout: Code preview on top, Output below -->
-          <div id="output-header">Generated Python Code</div>
-          <div id="code-preview"></div>
-          <div id="output-header">Output</div>
-          <div id="output-content"></div>
-          <!-- Debug panel: variables + call stack (shown during debug sessions) -->
-          <div id="debug-panel">
-            <div id="debug-panel-header">
-              <span>Variables</span>
-              <span class="debug-line-info" id="debug-line-info"></span>
+          <!-- Tabs for right panel -->
+          <div id="output-tabs">
+            <button class="panel-tab-btn active" data-panel="code-output">Code & Output</button>
+            <button class="panel-tab-btn" data-panel="saved-functions">Saved Functions</button>
+          </div>
+
+          <!-- Tab 1: Code & Output (default) -->
+          <div id="panel-content-code-output" class="panel-tab-content active">
+            <div id="output-header">Generated Python Code</div>
+            <div id="code-preview"></div>
+            <div id="output-header">Output</div>
+            <div id="output-content"></div>
+            <!-- Debug panel: variables + call stack (shown during debug sessions) -->
+            <div id="debug-panel">
+              <div id="debug-panel-header">
+                <span>Variables</span>
+                <span class="debug-line-info" id="debug-line-info"></span>
+              </div>
+              <div id="debug-variables"></div>
+              <div id="debug-callstack"></div>
             </div>
-            <div id="debug-variables"></div>
-            <div id="debug-callstack"></div>
+          </div>
+
+          <!-- Tab 2: Saved Functions -->
+          <div id="panel-content-saved-functions" class="panel-tab-content">
+            <div id="saved-functions-list"></div>
           </div>
         </div>
       </div>
@@ -469,6 +599,8 @@
   <script src="js/workspace/codePreview.js"></script>
   <script src="js/workspace/execution.js"></script>
   <script src="js/workspace/debugExecution.js"></script>
+  <script src="js/workspace/workspaceManager.js"></script>
+  <script src="js/workspace/savedFunctions.js"></script>
   <script src="js/workspace/importExport.js"></script>
   <script src="js/workspace/management.js"></script>
 
@@ -506,27 +638,6 @@
             }
           }
           // (Removed: old static "Model" tab handler - replaced by dynamic var: tabs)
-        });
-      });
-
-      // --- Output Panel Tabs (Code | Output) ---
-      const panelBtns = document.querySelectorAll('.panel-tab-btn');
-      const panelContents = document.querySelectorAll('.panel-tab-content');
-
-      panelBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const panel = btn.dataset.panel;
-
-          // Update button active states
-          panelBtns.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-
-          // Update content visibility
-          panelContents.forEach(pc => pc.classList.remove('active'));
-          const targetContent = document.getElementById('panel-content-' + panel);
-          if (targetContent) {
-            targetContent.classList.add('active');
-          }
         });
       });
 

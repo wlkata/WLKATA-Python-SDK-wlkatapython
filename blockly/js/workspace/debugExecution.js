@@ -302,6 +302,8 @@ function _endDebugSession(message) {
   }
   _debugHighlightedBlock = null;
 
+  // Re-enable debug buttons before hiding them
+  _setDebugButtonsEnabled(true);
   _setDebugMode(false);
 
   if (message) {

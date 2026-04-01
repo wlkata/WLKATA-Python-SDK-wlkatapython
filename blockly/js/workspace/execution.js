@@ -93,7 +93,7 @@ async function runCode() {
     appendOutput('Make sure the Python server is running.', 'stderr');
   } finally {
     runBtn.disabled = false;
-    runBtn.textContent = '▶ Run Code';
+    runBtn.textContent = '▶ Run';
   }
 }
 

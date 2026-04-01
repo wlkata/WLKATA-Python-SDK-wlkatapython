@@ -1,14 +1,41 @@
 /**
  * Main Entry Point for Blockly Application
  * Initializes all modules and sets up the workspace.
+ *
+ * Flow:
+ *   1. Show workspace selection dialog
+ *   2. Set the chosen workspace as current
+ *   3. Initialize Blockly and all modules
+ *   4. Load saved blocks from the workspace folder
+ *   5. Set up Ctrl+S save shortcut
  */
 
-// Initialize Blockly when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Init blocks & generators first (no workspace needed)
   initCustomBlocks();
   initPythonGenerator();
-  initBlockly();
   setupCustomPrompts();
+
+  // Show workspace picker and wait for selection
+  var wsPath = await showWorkspaceDialog();
+  setCurrentWorkspace(wsPath);
+
+  // Now inject Blockly
+  initBlockly();
+
+  // Load blocks from the workspace folder
+  loadWorkspaceBlocks();
+
+  // Init saved functions panel
+  initSavedFunctions();
+
+  // Ctrl+S / Cmd+S to save
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveWorkspaceBlocks();
+    }
+  });
 });
 
 /**

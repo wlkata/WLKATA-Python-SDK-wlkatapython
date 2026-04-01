@@ -1,19 +1,22 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
 const net = require('net');
 const fs = require('fs');
 
-// Collect startup logs before the window is created so we can replay them
+// Collect startup logs before the window is created so we can replay them.
+// Only forward to renderer after did-finish-load to avoid stacking
+// executeJavaScript listeners (which causes MaxListenersExceededWarning).
 const startupLogs = [];
+let _rendererReady = false;
 
 function log(msg) {
   const line = `[Main] ${msg}`;
   console.log(line);
   startupLogs.push({ level: 'log', message: line });
-  // Forward to renderer if window is already open
-  if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+  // Forward to renderer only after page has finished loading
+  if (_rendererReady && mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
     mainWindow.webContents.executeJavaScript(
       `console.log(${JSON.stringify(line)})`
     ).catch(() => {});
@@ -24,7 +27,7 @@ function logError(msg) {
   const line = `[Main] ${msg}`;
   console.error(line);
   startupLogs.push({ level: 'error', message: line });
-  if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+  if (_rendererReady && mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
     mainWindow.webContents.executeJavaScript(
       `console.error(${JSON.stringify(line)})`
     ).catch(() => {});
@@ -174,12 +177,22 @@ function createWindow() {
       `if (typeof setServerPort === 'function') { setServerPort(${serverPort}); }`
     ).catch(() => {});
 
+    // Log the localStorage file path so users can find it
+    const userDataPath = app.getPath('userData');
+    const localStoragePath = path.join(userDataPath, 'Local Storage', 'leveldb');
+    mainWindow.webContents.executeJavaScript(
+      `console.log('[Main] Electron userData path: ${userDataPath.replace(/\\/g, '\\\\')}');` +
+      `console.log('[Main] localStorage stored in: ${localStoragePath.replace(/\\/g, '\\\\')}');`
+    ).catch(() => {});
+
     for (const entry of startupLogs) {
       const fn = entry.level === 'error' ? 'console.error' : 'console.log';
       mainWindow.webContents.executeJavaScript(
         `${fn}(${JSON.stringify(entry.message)})`
       ).catch(() => {});
     }
+
+    _rendererReady = true;
   });
 
   mainWindow.on('closed', () => {
@@ -378,4 +391,43 @@ ipcMain.handle('execute-code', async (event, code) => {
   // The frontend will directly communicate with the Python server via HTTP
   // This is just a placeholder for any Electron-native operations if needed
   return { success: true };
+});
+
+// ── Workspace folder dialogs (native OS) ────────────────────────
+
+/**
+ * Open an existing folder using the native OS file picker.
+ * Returns the selected folder path, or null if cancelled.
+ */
+ipcMain.handle('dialog:openFolder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Open Workspace Folder',
+    properties: ['openDirectory', 'createDirectory'],
+    buttonLabel: 'Open',
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
+/**
+ * Create a new folder using the native OS save dialog.
+ * The user picks a location and types a folder name.
+ * Returns the created folder path, or null if cancelled.
+ */
+ipcMain.handle('dialog:createFolder', async () => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Create New Workspace Folder',
+    buttonLabel: 'Create',
+    nameFieldLabel: 'Workspace Name',
+    showsTagField: false,
+  });
+  if (result.canceled || !result.filePath) return null;
+
+  // Create the folder if it doesn't exist
+  const folderPath = result.filePath;
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true });
+    log(`Created workspace folder: ${folderPath}`);
+  }
+  return folderPath;
 });
