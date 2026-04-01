@@ -536,6 +536,44 @@ function installProcedureFlyout(workspace) {
 // 4.  VARIABLE flyout  (hides params AND local vars)
 // ────────────────────────────────────────────────────────────────────────────
 
+function installFilteredVariableDropdown() {
+  // Override FieldVariable.prototype.getOptions so that the dropdown on
+  // variables_get / variables_set blocks never shows function parameters
+  // or local variables.  We wrap the original getOptions to filter results.
+  var FV = Blockly.FieldVariable;
+  if (!FV || !FV.prototype) return;
+
+  var origGetOptions = FV.prototype.getOptions;
+  FV.prototype.getOptions = function(opt_useCache) {
+    var options = origGetOptions.call(this, opt_useCache);
+    // Only filter when generating fresh options (not cached)
+    var block = this.getSourceBlock();
+    if (!block || block.isInFlyout) return options;
+    var ws = block.workspace;
+    if (!ws || typeof getAllLocalScopeNames !== 'function') return options;
+    var localNames = getAllLocalScopeNames(ws);
+    if (localNames.size === 0) return options;
+    // Filter: keep options whose display text is NOT a local-scope name
+    // Options format: [[displayName, id], ...] with special entries at the end
+    // (Rename variable, Delete variable) that we always keep.
+    var filtered = [];
+    for (var i = 0; i < options.length; i++) {
+      var opt = options[i];
+      var displayName = opt[0];
+      // Keep special menu items (Rename/Delete) — they have special constant IDs
+      if (opt[1] === 'RENAME_VARIABLE_ID' || opt[1] === 'DELETE_VARIABLE_ID') {
+        filtered.push(opt);
+        continue;
+      }
+      // Filter out local-scope names
+      if (!localNames.has(displayName)) {
+        filtered.push(opt);
+      }
+    }
+    return filtered.length > 0 ? filtered : options;
+  };
+}
+
 function installFilteredVariablesFlyout(workspace) {
   workspace.registerToolboxCategoryCallback('VARIABLE', function (ws) {
     var localNames = getAllLocalScopeNames(ws);

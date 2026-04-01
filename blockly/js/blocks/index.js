@@ -16,5 +16,6 @@ function initCustomBlocks() {
   initFunctionParamBlock();
   initLocalVariablesIcon();
   initProcedureOverrides();
+  installFilteredVariableDropdown();
   setupLocalVarIconListener();
 }

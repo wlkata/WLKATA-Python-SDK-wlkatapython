@@ -72,45 +72,17 @@ function initPythonGenerator() {
 
   // ── Override Blockly.Python.finish to strip "x = None" for param/local vars ──
   // The built-in init() emits "x = None" in definitions_ for every workspace
-  // variable.  finish() joins definitions_ + code.  We intercept finish() to
-  // remove param/local-var declarations right before they get joined.
+  // variable.  We don't want any of these declarations — variables should only
+  // appear when explicitly assigned by the user's blocks.
   const _origPythonFinish = Blockly.Python.finish.bind(Blockly.Python);
   Blockly.Python.finish = function(code) {
-    // Before the original finish() joins definitions_, scrub param/local-var entries
-    if (typeof getAllLocalScopeNames === 'function') {
-      const ws = typeof getWorkspace === 'function' ? getWorkspace() : null;
-      if (ws) {
-        const localNames = getAllLocalScopeNames(ws);
-        if (localNames.size > 0) {
-          const defs = Blockly.Python.definitions_;
-          for (const key in defs) {
-            if (!key.startsWith('variables_')) continue;
-            const val = defs[key];
-            if (typeof val === 'string') {
-              // Value is "varName = None" — extract varName (may be mangled)
-              const match = val.match(/^(\w+)\s*=\s*None$/);
-              if (match) {
-                const varName = match[1];
-                // Check against both raw names and nameDB_ mangled names
-                if (localNames.has(varName)) {
-                  delete defs[key];
-                } else if (Blockly.Python.nameDB_) {
-                  // Check if any local name mangles to this varName
-                  for (const ln of localNames) {
-                    try {
-                      const mangled = Blockly.Python.nameDB_.getName(ln, Blockly.Names.NameType.VARIABLE || 'VARIABLE');
-                      if (mangled === varName) {
-                        delete defs[key];
-                        break;
-                      }
-                    } catch(e) {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+    // Remove ALL "x = None" variable declarations.
+    // Blockly's init() adds "varName = None" for every workspace variable
+    // into definitions_['variables'].  We don't want any of these —
+    // variables get their values from actual assignment blocks.
+    const defs = Blockly.Python.definitions_;
+    if (defs && defs.variables !== undefined) {
+      delete defs.variables;
     }
     return _origPythonFinish(code);
   };
