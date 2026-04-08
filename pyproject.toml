@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "wlkatapython"
+name = "wlkatapython-dev"
 version = "0.1.0"
 description = "WLKATA-Mirobot/E4/MT4/MS4220 Multiple robotic arm control"
 readme = "README.md"
@@ -25,6 +25,9 @@ classifiers = [
 dependencies = [
     "pyserial",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wlkatapython"]
 
 [project.optional-dependencies]
 dev = [
