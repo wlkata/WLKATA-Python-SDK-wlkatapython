@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "wlkatapython-dev"
-version = "0.1.0"
+version = "1.0.0.dev0"
 description = "WLKATA-Mirobot/E4/MT4/MS4220 Multiple robotic arm control"
 readme = "README.md"
 license = {text = "MIT"}
