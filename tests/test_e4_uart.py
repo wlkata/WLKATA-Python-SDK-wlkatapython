@@ -187,16 +187,28 @@ class TestE4Status:
         result = robot.getcoordinate(5)  # Invalid for E4
         assert "error" in result.lower()
     
-    def test_version(self, e4_with_sim):
-        """Test E4 version query."""
+    def test_version_with_exbox(self, e4_with_sim):
+        """Test E4 version query when both EXbox and robot respond."""
         robot, sim = e4_with_sim
         
         sim.set_firmware_version("E4 V1.5.0", "EXbox V1.5.0")
         
         version = robot.version()
         
+        assert isinstance(version, tuple)
         assert "EXbox" in version[0]
         assert "E4" in version[1]
+
+    def test_version_robot_only(self, e4_with_sim):
+        """Test E4 version query when only the robot responds (no EXbox)."""
+        robot, sim = e4_with_sim
+
+        sim.set_firmware_version("E4 V1.5.0", "")
+
+        version = robot.version()
+
+        assert isinstance(version, str)
+        assert "E4" in version
 
 
 class TestE4InheritedFunctions:

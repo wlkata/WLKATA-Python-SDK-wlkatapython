@@ -623,18 +623,29 @@ class TestMirobotSystem:
         
         assert result == 1
     
-    def test_version(self, mirobot_with_sim):
-        """Test version query."""
+    def test_version_with_exbox(self, mirobot_with_sim):
+        """Test version query when both EXbox and robot respond."""
         robot, sim = mirobot_with_sim
         
         sim.set_firmware_version("Mirobot V2.0.0", "EXbox V2.0.0")
         
         version = robot.version()
         
-        # Version returns a tuple (exbox, mirobot)
+        assert isinstance(version, tuple)
         assert "EXbox" in version[0]
         assert "Mirobot" in version[1]
-    
+
+    def test_version_robot_only(self, mirobot_with_sim):
+        """Test version query when only the robot responds (no EXbox)."""
+        robot, sim = mirobot_with_sim
+
+        sim.set_firmware_version("Mirobot V2.0.0", "")
+
+        version = robot.version()
+
+        assert isinstance(version, str)
+        assert "Mirobot" in version
+
     def test_send_msg(self, mirobot_with_sim):
         """Test raw message sending."""
         robot, sim = mirobot_with_sim

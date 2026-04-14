@@ -141,16 +141,31 @@ class TestMT4Status:
         assert float(robot.getcoordinate(3)) == 160.0
         assert float(robot.getcoordinate(4)) == 35.0
     
-    def test_version(self, mt4_with_sim):
-        """Test MT4 version query."""
+    def test_version_with_exbox(self, mt4_with_sim):
+        """Test MT4 version query when both EXbox and robot respond.
+
+        Note: MT4 hardware uses 'E4' as the firmware prefix, same as E4.
+        """
         robot, sim = mt4_with_sim
         
-        sim.set_firmware_version("MT4 V1.2.0", "EXbox V1.2.0")
+        sim.set_firmware_version("E4 V1.2.0", "EXbox V1.2.0")
         
         version = robot.version()
-        # The version() returns a tuple of (exbox_version, firmware_version)
+        
         assert isinstance(version, tuple)
-        assert len(version) == 2
+        assert "EXbox" in version[0]
+        assert "E4" in version[1]
+
+    def test_version_robot_only(self, mt4_with_sim):
+        """Test MT4 version query when only the robot responds (no EXbox)."""
+        robot, sim = mt4_with_sim
+
+        sim.set_firmware_version("E4 V1.2.0", "")
+
+        version = robot.version()
+
+        assert isinstance(version, str)
+        assert "E4" in version
 
 
 class TestMT4InheritedFunctions:

@@ -331,8 +331,14 @@ class WLKATA_UART:
 
         Note: Currently only available in UART mode, not RS485.
 
+        The response may contain both an EXbox controller version and a robot
+        firmware version, or only the robot firmware version. When both are
+        present, the EXbox line always comes first.
+
         Returns:
-            tuple: (controller_version, robot_version) or "查询失败" on timeout.
+            tuple: (exbox_version, robot_version) if both are present.
+            str: robot_version if only the robot responds.
+            str: "查询失败" on timeout.
 
         Raises:
             UnicodeDecodeError: If response cannot be decoded.
@@ -343,10 +349,16 @@ class WLKATA_UART:
 
         for _ in range(5):
             line1 = self.pSerial.readline().decode('utf-8').strip()
-            line2 = self.pSerial.readline().decode('utf-8').strip()
+            if not line1:
+                time.sleep(0.1)
+                continue
 
-            if line1.startswith('EXbox') and line2.startswith(self._VERSION_PREFIX):
-                return line1, line2
+            if line1.startswith('EXbox'):
+                line2 = self.pSerial.readline().decode('utf-8').strip()
+                if line2.startswith(self._VERSION_PREFIX):
+                    return line1, line2
+            elif line1.startswith(self._VERSION_PREFIX):
+                return line1
 
             time.sleep(0.1)
 

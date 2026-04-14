@@ -681,10 +681,10 @@ class MirobotSimulator(SimulatedHardware):
         
         Args:
             version: Robot firmware version
-            exbox_version: Optional EXbox version
+            exbox_version: Optional EXbox version (pass "" to clear)
         """
         self._firmware_version = version
-        if exbox_version:
+        if exbox_version is not None:
             self._exbox_version = exbox_version
 
 
@@ -818,7 +818,7 @@ class E4Simulator(SimulatedHardware):
     def set_firmware_version(self, version: str, exbox_version: str = None):
         """Set the firmware version strings."""
         self._firmware_version = version
-        if exbox_version:
+        if exbox_version is not None:
             self._exbox_version = exbox_version
 
 
@@ -952,7 +952,7 @@ class MT4Simulator(SimulatedHardware):
     def set_firmware_version(self, version: str, exbox_version: str = None):
         """Set the firmware version strings."""
         self._firmware_version = version
-        if exbox_version:
+        if exbox_version is not None:
             self._exbox_version = exbox_version
 
 

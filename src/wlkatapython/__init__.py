@@ -25,6 +25,8 @@ Example usage::
     robot.homing()
     robot.writeAngle(0, 45.0, 30.0, 15.0, 10.0, 5.0, 0.0)
 """
+import warnings
+
 from .robots import WLKATA_UART, Mirobot_UART, E4_UART, MT4_UART, MS4220_UART
 
 try:
@@ -40,3 +42,19 @@ __all__ = [
     "MS4220_UART",
     "Mirobot_Serial_GUI",
 ]
+
+_DEPRECATED_CLASSES = {
+    "Wlkata_UART": ("WLKATA_UART", 1.2),
+}
+
+
+def __getattr__(name):
+    new_name, since_version = _DEPRECATED_CLASSES.get(name)
+    if new_name is not None:
+        warnings.warn(
+            f"{name} is deprecated and will be removed in v{since_version}, "
+            f"use {new_name} instead",
+            DeprecationWarning, stacklevel=2,
+        )
+        return globals()[new_name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
