@@ -56,6 +56,14 @@ class TestMirobotHoming:
         time.sleep(0.2)
         # Command should be accepted
 
+    @pytest.mark.parametrize("mode", [3.5, 8.0, -1, 11, "8", None])
+    def test_homing_invalid_mode_falls_back(self, mirobot_with_sim, mode):
+        """Test that non-int or out-of-range modes fall back to default."""
+        robot, sim = mirobot_with_sim
+        robot.homing(mode)
+        time.sleep(0.2)
+        # Should not raise; falls back to o105=8
+
 
 class TestMirobotMovement:
     """Tests for movement commands."""
@@ -401,14 +409,95 @@ class TestMirobotStatus:
         
         assert int(pump_value) == 500
     
-    def test_get_mooe(self, mirobot_with_sim):
+    def test_get_mode(self, mirobot_with_sim):
         """Test getting motion mode."""
         robot, sim = mirobot_with_sim
         
         sim.set_state(motion_mode=1)
-        mooe = robot.getmooe()
+        mode = robot.getmode()
         
-        assert int(mooe) == 1
+        assert int(mode) == 1
+
+    def test_get_mooe_deprecated(self, mirobot_with_sim):
+        """Test that getmooe() still works but emits a deprecation warning."""
+        robot, sim = mirobot_with_sim
+
+        sim.set_state(motion_mode=1)
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            mode = robot.getmooe()
+            assert int(mode) == 1
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "getmooe" in str(w[0].message)
+
+    def test_mooe_dict_key_deprecated(self, mirobot_with_sim):
+        """Test that accessing mirobot_state_all['mooe'] works with deprecation warning."""
+        robot, sim = mirobot_with_sim
+
+        sim.set_state(motion_mode=2)
+        robot.getStatus()
+
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            value = robot.mirobot_state_all["mooe"]
+            assert int(value) == 2
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "mooe" in str(w[0].message)
+
+    def test_mooe_dict_key_contains(self, mirobot):
+        """Test that 'mooe' in mirobot_state_all returns True for backward compat."""
+        assert "mooe" in mirobot.mirobot_state_all
+        assert "mode" in mirobot.mirobot_state_all
+
+    def test_mooe_dict_key_set_deprecated(self, mirobot):
+        """Test that setting mirobot_state_all['mooe'] writes to 'mode' with warning."""
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            mirobot.mirobot_state_all["mooe"] = 42
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+        assert mirobot.mirobot_state_all["mode"] == 42
+
+
+class TestDeprecatedMethodAliases:
+    """Tests that old method names still work but emit deprecation warnings."""
+
+    RENAMED_METHODS = [
+        ("read_message", "readMessage"),
+        ("writecoordinate", "writeCoordinate"),
+        ("writeangle", "writeAngle"),
+        ("writeexpand", "writeExpand"),
+        ("getcoordinate", "getCoordinate"),
+        ("getpump", "getPump"),
+        ("getmode", "getMode"),
+        ("getmooe", "getMode"),
+    ]
+
+    @pytest.mark.parametrize("old_name,new_name", RENAMED_METHODS)
+    def test_deprecated_alias_exists(self, mirobot, old_name, new_name):
+        """Test that both old and new method names exist."""
+        assert hasattr(mirobot, old_name)
+        assert hasattr(mirobot, new_name)
+
+    @pytest.mark.parametrize("old_name,new_name", RENAMED_METHODS)
+    def test_deprecated_alias_warns(self, mirobot_with_sim, old_name, new_name):
+        """Test that calling old name emits DeprecationWarning mentioning v1.2."""
+        robot, sim = mirobot_with_sim
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            try:
+                getattr(robot, old_name)()
+            except Exception:
+                pass
+            dep_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+            assert len(dep_warnings) >= 1, f"No DeprecationWarning for {old_name}()"
+            assert new_name in str(dep_warnings[0].message)
 
 
 class TestMirobotGPIO:

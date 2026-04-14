@@ -1,60 +1,42 @@
-"""
-    WLKATA_UART and Mirobot-UART are the base classes for serial communication of all robotic arms, including UART and RS485 communication.
-    Mirobot-UART inherits from wlkata_UART,
-    Mirobot_SeriAL-GUI is the GUI for the Mirobot robotic arm,
-    E4-UART is a class of E4 robotic arms that inherits from wlkata_ UART,
-    MT4-UART is a class of the MT4 robotic arm, inherited from wlkata_UART.
+"""WLKATA Python SDK - Serial control library for WLKATA robotic devices.
 
-    wlkata_UART与Mirobot_UART是所有机械臂的基于串口通信的基类，包括UART和RS485通信。
-    Mirobot_UART是继承自wlkata_UART，
-    Mirobot_Serial_GUI是Mirobot机械臂的GUI，
-    E4_UART是E4机械臂的类，继承自Mirobot_UART， 
-    MT4_UART是MT4机械臂的类， 继承自Mirobot_UART，
-    MS4220_UART是MS4220步进电机控制器的类， 继承自wlkata_UART。
+This package provides Python classes for communicating with WLKATA robotic
+arms and controllers over UART and RS485 serial interfaces.
 
+Supported devices:
+
+- ``Mirobot_UART`` -- WLKATA Mirobot 6-axis desktop robotic arm
+- ``E4_UART`` -- WLKATA E4 4-axis SCARA robotic arm
+- ``MT4_UART`` -- WLKATA MT4 4-axis robotic arm
+- ``MS4220_UART`` -- WLKATA MS4220 stepper motor controller
+- ``Mirobot_Serial_GUI`` -- Tkinter-based GUI for Mirobot control (optional)
+
+All device classes inherit from ``WLKATA_UART``, which provides the core
+serial communication protocol, status parsing, homing, movement commands,
+GPIO control, and firmware version queries.
+
+Example usage::
+
+    from wlkatapython import Mirobot_UART
+    import serial
+
+    robot = Mirobot_UART()
+    robot.init(serial.Serial('/dev/ttyUSB0', 115200), -1)
+    robot.homing()
+    robot.writeAngle(0, 45.0, 30.0, 15.0, 10.0, 5.0, 0.0)
 """
-from .robots import Mirobot_UART, E4_UART, MT4_UART, MS4220_UART
+from .robots import WLKATA_UART, Mirobot_UART, E4_UART, MT4_UART, MS4220_UART
+
 try:
     from .robots.Mirobot_GUI import Mirobot_Serial_GUI
 except ImportError:
-    # Mirobot_Serial_GUI not available
-    Mirobot_Serial_GUI = object
+    Mirobot_Serial_GUI = None
 
-
-
-
-
-
-
-  
-
-
-
- 
-import serial
-
-class Wlkata_UART(Mirobot_UART):
-    def __init__(self):
-        super().__init__()
-
-class Mirobot_UART(Wlkata_UART):
-    def __init__(self):
-        super().__init__()
-
-class Mirobot_Serial_GUI(Mirobot_Serial_GUI):
-    def __init__(self):
-        super().__init__()
-
-class E4_UART(E4_UART):
-    def __init__(self):
-        super().__init__()
-
-class MT4_UART(MT4_UART):
-    def __init__(self):
-        super().__init__()
-
-class MS4220_UART(MS4220_UART):
-    def __init__(self):
-        super().__init__()  
-
-
+__all__ = [
+    "WLKATA_UART",
+    "Mirobot_UART",
+    "E4_UART",
+    "MT4_UART",
+    "MS4220_UART",
+    "Mirobot_Serial_GUI",
+]

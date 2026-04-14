@@ -33,6 +33,7 @@ packages = ["src/wlkatapython"]
 dev = [
     "pytest>=7.0",
     "pytest-cov",
+    "pytest-xdist>=3.6.1",
 ]
 docs = [
     "sphinx>=7.0",

@@ -1,18 +1,24 @@
-from .Mirobot_UART import Mirobot_UART
-
-import serial
+import os
+import threading as th
 import time
 import tkinter as tk
 from tkinter import ttk
-from serial.tools import list_ports
-import threading as th
-import os
 
-# Mirobot GUI界面
-# Mirobot GUI interface
+import serial
+from serial.tools import list_ports
+
+from .Mirobot_UART import Mirobot_UART
+
 
 class Mirobot_Serial_GUI:
+    """Tkinter-based GUI for controlling a Mirobot robotic arm.
+
+    Provides a graphical interface for serial connection, coordinate/angle
+    jogging, gripper/pump control, G-code recording, and file saving.
+    """
+
     def __init__(self):
+        """Initialize GUI widget name lists and state variables."""
         self.line = 1.0
         self.Descartes_name = ["X", "Y", "Z", "A", "B", "C", "D", ]
         self.angle_name = ["J1", "J2", "J3", "J4", "J5", "J6"]
@@ -271,7 +277,6 @@ class Mirobot_Serial_GUI:
         self.value = round(float(self.coordinate_tk[i].get()), 2)
         self.coordinate_tk[i].delete(0, tk.END)
         self.coordinate_tk[i].insert(0, self.value + round(float(self.coordinate_tk8.get()), 2))
-        # 获取X/Y/X/RX/RY/RZ的值并加到一起
         self.coordinate_X = round(float(self.coordinate_tk[0].get()), 2)
         self.coordinate_Y = round(float(self.coordinate_tk[1].get()), 2)
         self.coordinate_Z = round(float(self.coordinate_tk[2].get()), 2)
@@ -281,13 +286,11 @@ class Mirobot_Serial_GUI:
         self.coordinate_D = round(float(self.coordinate_tk[6].get()), 2)
         if i == 6:
             self.coordinate_D = "G91 G01 D" + str(round(float(self.coordinate_tk8.get()), 2)) + " F2000"
-            # print(coordinate_D)
             self.robot.sendMsg(self.coordinate_D)
         else:
             self.coordinate_XYZRXYZ = "M20 G90 G00 X" + str(self.coordinate_X) + " Y" + str(
                 self.coordinate_Y) + " Z" + str(self.coordinate_Z) + " A" + str(self.coordinate_RX) + " B" + str(
                 self.coordinate_RY) + " C" + str(self.coordinate_RZ)
-            # print(self.coordinate_XYZRXYZ)
             self.robot.sendMsg(self.coordinate_XYZRXYZ)
 
     def __coordinate_cut_def(self, event):
@@ -295,7 +298,6 @@ class Mirobot_Serial_GUI:
         self.value = round(float(self.coordinate_tk[i].get()), 2)
         self.coordinate_tk[i].delete(0, tk.END)
         self.coordinate_tk[i].insert(0, self.value - round(float(self.coordinate_tk8.get()), 2))
-        # 获取X/Y/X/RX/RY/RZ的值并加到一起
         self.coordinate_X = round(float(self.coordinate_tk[0].get()), 2)
         self.coordinate_Y = round(float(self.coordinate_tk[1].get()), 2)
         self.coordinate_Z = round(float(self.coordinate_tk[2].get()), 2)
@@ -305,13 +307,11 @@ class Mirobot_Serial_GUI:
         self.coordinate_D = round(float(self.coordinate_tk[6].get()), 2)
         if i == 6:
             self.coordinate_D = "G91 G01 D-" + str(round(float(self.coordinate_tk8.get()), 2)) + " F2000"
-            # print(coordinate_D)
             self.robot.sendMsg(self.coordinate_D)
         else:
             self.coordinate_XYZRXYZ = "M20 G90 G00 X" + str(self.coordinate_X) + " Y" + str(
                 self.coordinate_Y) + " Z" + str(self.coordinate_Z) + " A" + str(self.coordinate_RX) + " B" + str(
                 self.coordinate_RY) + " C" + str(self.coordinate_RZ)
-            # print(coordinate_XYZRXYZ)
             self.robot.sendMsg(self.coordinate_XYZRXYZ)
 
     def __coordinate_add_def8(self, event):
@@ -339,7 +339,7 @@ class Mirobot_Serial_GUI:
 
     def __getpump_copy_button_def(self, event):
         try:
-            self.getpump_copy = "G3 S" + str(self.robot.getpump()) + "\r\n"
+            self.getpump_copy = "G3 S" + str(self.robot.getPump()) + "\r\n"
         except:
             self.getpump_copy = None
         self.txt_copy.insert(self.line, self.getpump_copy)
@@ -363,6 +363,7 @@ class Mirobot_Serial_GUI:
             f.write(self.txt_copy.get("1.0", tk.END))
 
     def Mirobot_GUI(self):
+        """Build and launch the Mirobot control GUI window."""
         self.root = tk.Tk()
         self.root.bind("<F1>", self.__descartes_copy_button_def)
         self.root.bind("<F2>", self.__getpump_copy_button_def)
@@ -521,7 +522,7 @@ class Mirobot_Serial_GUI:
         self.txt_save = tk.Entry(self.frame5, width=50)
 
         if os.name == 'nt':  # Windows
-            self.default_path = os.path.expanduser('~\Documents')
+            self.default_path = os.path.expanduser(r'~\Documents')
         else:  # Linux && macOS
             self.default_path = "/opt"
         self.txt_save.insert(0, os.path.join(self.default_path, 'main.txt'))
@@ -532,7 +533,7 @@ class Mirobot_Serial_GUI:
 
         self.root.mainloop()
 
+
 if __name__ == "__main__":
     gui = Mirobot_Serial_GUI()
     gui.Mirobot_GUI()
-

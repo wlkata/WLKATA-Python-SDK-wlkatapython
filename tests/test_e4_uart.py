@@ -56,6 +56,14 @@ class TestE4Homing:
         
         assert sim.state.angle_X == 0.0
 
+    @pytest.mark.parametrize("mode", [3.5, 8.0, -1, "8", None])
+    def test_homing_invalid_mode_falls_back(self, e4_with_sim, mode):
+        """Test that non-int or out-of-range modes fall back to $h."""
+        robot, sim = e4_with_sim
+        robot.homing(mode)
+        time.sleep(0.2)
+        # Should not raise; falls back to $h
+
 
 class TestE4Movement:
     """Tests for E4 movement commands."""

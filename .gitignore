@@ -215,5 +215,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+.vscode/
+
 gcode_log.txt
 

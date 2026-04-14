@@ -56,6 +56,14 @@ class TestMT4Homing:
         
         assert sim.state.angle_X == 0.0
 
+    @pytest.mark.parametrize("mode", [3.5, 8.0, -1, "8", None])
+    def test_homing_invalid_mode_falls_back(self, mt4_with_sim, mode):
+        """Test that non-int or out-of-range modes fall back to $h."""
+        robot, sim = mt4_with_sim
+        robot.homing(mode)
+        time.sleep(0.2)
+        # Should not raise; falls back to $h
+
 
 class TestMT4Movement:
     """Tests for MT4 movement commands."""
@@ -137,10 +145,7 @@ class TestMT4Status:
         """Test MT4 version query."""
         robot, sim = mt4_with_sim
         
-        # Note: MT4_UART.version() in the library has a bug - it checks for 'E4'
-        # instead of 'MT4'. This causes it to return Chinese error message.
-        # We're setting firmware to 'E4' to make the test pass with current library.
-        sim.set_firmware_version("E4 V1.2.0", "EXbox V1.2.0")
+        sim.set_firmware_version("MT4 V1.2.0", "EXbox V1.2.0")
         
         version = robot.version()
         # The version() returns a tuple of (exbox_version, firmware_version)
