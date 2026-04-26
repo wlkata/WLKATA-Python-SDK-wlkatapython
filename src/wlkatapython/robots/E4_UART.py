@@ -2,7 +2,6 @@ import serial
 
 from .base import WLKATA_UART
 from .utils import (
-    _MOTION_CODES, _POSITION_CODES,
     _4AXIS_ANGLE_MAP, _4AXIS_COORDINATE_MAP,
     deprecated_alias,
 )
@@ -22,33 +21,30 @@ class E4_UART(WLKATA_UART):
     _ANGLE_MAP = _4AXIS_ANGLE_MAP
     _COORDINATE_MAP = _4AXIS_COORDINATE_MAP
 
-    def writeCoordinate(self, motion, position, x, y, z, a):
+    def writeCoordinate(self, motion, position, x=None, y=None, z=None, a=None):
         """Move the E4 to specified Cartesian coordinates.
 
         Args:
             motion (int): Movement type (0=Fast G00, 1=Linear G01, 2=Joint G05).
             position (int): Coordinate mode (0=Absolute G90, 1=Incremental G91).
-            x (float): X coordinate.
-            y (float): Y coordinate.
-            z (float): Z coordinate.
-            a (float): A rotation.
+            x (float, optional): X coordinate.
+            y (float, optional): Y coordinate.
+            z (float, optional): Z coordinate.
+            a (float, optional): A rotation.
         """
-        motion_code = _MOTION_CODES.get(motion, "G00")
-        position_code = _POSITION_CODES.get(position, "G90")
-        self.sendMsg(f"M20{position_code}{motion_code}X{x}Y{y}Z{z}A{a}")
+        super().writeCoordinate(motion, position, x=x, y=y, z=z, a=a)
 
-    def writeAngle(self, position, x, y, z, a):
+    def writeAngle(self, position, x=None, y=None, z=None, a=None):
         """Move the E4 to specified joint angles.
 
         Args:
             position (int): Coordinate mode (0=Absolute G90, 1=Incremental G91).
-            x (float): Axis 1 angle.
-            y (float): Axis 2 angle.
-            z (float): Axis 3 angle.
-            a (float): Axis 4 angle.
+            x (float, optional): Axis 1 angle.
+            y (float, optional): Axis 2 angle.
+            z (float, optional): Axis 3 angle.
+            a (float, optional): Axis 4 angle.
         """
-        position_code = _POSITION_CODES.get(position, "G90")
-        self.sendMsg(f"M21{position_code}G00X{x}Y{y}Z{z}A{a}")
+        super().writeAngle(position, x=x, y=y, z=z, a=a)
 
     def getAngle(self, num):
         """Get the angle of a specific E4 axis.

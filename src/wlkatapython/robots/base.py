@@ -29,14 +29,14 @@ from .utils import (
     build_gpio_cmd,
     parse_gpio_response,
     deprecated_alias,
+    build_axes_string,
 )
 
 
 class WLKATA_UART:
     _VALID_HOMING_MODES = set(range(11))
-    _HOMING_FALLBACK = "o105=8"
+    _HOMING_FALLBACK = "$h"
     _ZERO_CMD = "M21 G90 G00 X0 Y0 Z0 A0 B0 C00"
-    _AXES = "X{x}Y{y}Z{z}A{a}B{b}C{c}"
     _VERSION_PREFIX = "Mirobot"
     _ANGLE_MAP = _ANGLE_MAP
     _COORDINATE_MAP = _COORDINATE_MAP
@@ -236,7 +236,8 @@ class WLKATA_UART:
         """
         self.sendMsg(self._ZERO_CMD)
 
-    def writeCoordinate(self, motion, position, x, y, z, a, b, c):
+    def writeCoordinate(self, motion, position, x=None, y=None, z=None,
+                         a=None, b=None, c=None):
         """Move the robot to specified Cartesian coordinates.
 
         Args:
@@ -247,16 +248,16 @@ class WLKATA_UART:
             position (int): Coordinate mode:
                            0 - Absolute (G90)
                            1 - Incremental (G91)
-            x (float): X coordinate
-            y (float): Y coordinate
-            z (float): Z coordinate
-            a (float): A rotation (RX)
-            b (float): B rotation (RY)
-            c (float): C rotation (RZ)
+            x (float, optional): X coordinate.
+            y (float, optional): Y coordinate.
+            z (float, optional): Z coordinate.
+            a (float, optional): A rotation (RX).
+            b (float, optional): B rotation (RY).
+            c (float, optional): C rotation (RZ).
         """
         motion_code = _MOTION_CODES.get(motion, "G00")
         position_code = _POSITION_CODES.get(position, "G90")
-        axes = self._AXES.format(x=x, y=y, z=z, a=a, b=b, c=c)
+        axes = build_axes_string(x=x, y=y, z=z, a=a, b=b, c=c)
         self.sendMsg(f"M20{position_code}{motion_code}{axes}")
 
     def speed(self, num):
@@ -277,22 +278,23 @@ class WLKATA_UART:
         else:
             self.__error_except(self.speed, 1)
 
-    def writeAngle(self, position, x, y, z, a, b, c):
+    def writeAngle(self, position, x=None, y=None, z=None,
+                    a=None, b=None, c=None):
         """Move the robot to specified joint angles.
 
         Args:
             position (int): Coordinate mode:
                            0 - Absolute (G90)
                            1 - Incremental (G91)
-            x (float): Axis 1 angle
-            y (float): Axis 2 angle
-            z (float): Axis 3 angle
-            a (float): Axis 4 angle
-            b (float): Axis 5 angle
-            c (float): Axis 6 angle
+            x (float, optional): Axis 1 angle.
+            y (float, optional): Axis 2 angle.
+            z (float, optional): Axis 3 angle.
+            a (float, optional): Axis 4 angle.
+            b (float, optional): Axis 5 angle.
+            c (float, optional): Axis 6 angle.
         """
         position_code = _POSITION_CODES.get(position, "G90")
-        axes = self._AXES.format(x=x, y=y, z=z, a=a, b=b, c=c)
+        axes = build_axes_string(x=x, y=y, z=z, a=a, b=b, c=c)
         self.sendMsg(f"M21{position_code}G00{axes}")
 
     def writeExpand(self, motion, position, d):
@@ -347,6 +349,7 @@ class WLKATA_UART:
         self.pSerial.flushOutput()
         self.sendMsg("$V")
 
+        # TODO: Versions may not in the same order
         for _ in range(5):
             line1 = self.pSerial.readline().decode('utf-8').strip()
             if not line1:
@@ -374,6 +377,8 @@ class WLKATA_UART:
         Raises:
             Exception: With a message corresponding to the error code.
         """
+        if num == 1:
+            return
         msg = _ERROR_MESSAGES.get(num)
         if msg:
             raise Exception(f"{f.__name__}: {msg}")
@@ -412,7 +417,17 @@ class WLKATA_UART:
             dict or str: Parsed state dictionary, or "parse error" if the
                         response does not match the expected format.
         """
-        pattern = r'<(\w+),Angle\(ABCDXYZ\):([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),Cartesian coordinate\(XYZ RxRyRz\):([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),Pump PWM:([\d.-]+),Valve PWM:([\d.-]+),Motion_MODE:([\d.-]+)>'
+        pattern = (
+            r'<(\w+),Angle\(ABCDXYZ\):'
+            r'([\d.-]+),([\d.-]+),([\d.-]+),'
+            r'([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),'
+            r'Cartesian coordinate\(XYZ RxRyRz\):'
+            r'([\d.-]+),([\d.-]+),([\d.-]+),'
+            r'([\d.-]+),([\d.-]+),([\d.-]+),'
+            r'Pump PWM:([\d.-]+),'
+            r'Valve PWM:([\d.-]+),'
+            r'Motion_MODE:([\d.-]+)>'
+        )
         match = re.match(pattern, line)
         if match:
             self.mirobot_state_all = _DeprecatedKeyDict(
@@ -753,6 +768,17 @@ class WLKATA_UART:
             return result
         else:
             self.__error_except(self.gpio_enable_file_read, 3)
+
+    def waitIdle(self, count=3):
+        if count == 0:
+            return True
+        counter = 0
+        while counter < count:
+            if self.getState() == "Idle":
+                counter += 1
+            else:
+                counter = 0
+            time.sleep(0.2)
 
     # Deprecated aliases -- will be removed in v1.2
     @deprecated_alias("readMessage", version=1.2)

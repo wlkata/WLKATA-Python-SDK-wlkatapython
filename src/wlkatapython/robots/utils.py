@@ -10,6 +10,28 @@ _POSITION_CODES = {0: "G90", 1: "G91"}
 _GRIPPER_PWM = {0: 0, 1: 40, 2: 60}
 _PUMP_PWM = {0: 0, 1: 1000, 2: 500}
 
+_AXIS_LABELS = (("X", "x"), ("Y", "y"), ("Z", "z"),
+                ("A", "a"), ("B", "b"), ("C", "c"))
+
+
+def build_axes_string(**kwargs):
+    """Build a G-code axis string from provided axis values.
+
+    Only axes with non-None values are included.
+
+    Example:
+        >>> build_axes_string(x=10, y=20, z=30)
+        'X10Y20Z30'
+        >>> build_axes_string(x=10, y=20, z=30, a=5, b=None, c=None)
+        'X10Y20Z30A5'
+    """
+    parts = []
+    for label, key in _AXIS_LABELS:
+        val = kwargs.get(key)
+        if val is not None:
+            parts.append(f"{label}{val}")
+    return "".join(parts)
+
 _GPIO_PIN_INDEX = {"A0": 0, "A1": 1, "D0": 2, "D1": 3}
 
 _STATUS_KEYS = (
