@@ -643,8 +643,9 @@ class TestMirobotSystem:
 
         version = robot.version()
 
-        assert isinstance(version, str)
-        assert "Mirobot" in version
+        assert isinstance(version, tuple)
+        assert version[0] == ""
+        assert "Mirobot" in version[1]
 
     def test_send_msg(self, mirobot_with_sim):
         """Test raw message sending."""

@@ -349,7 +349,9 @@ class WLKATA_UART:
         self.pSerial.flushOutput()
         self.sendMsg("$V")
 
-        # TODO: Versions may not in the same order
+        exbox = ""
+        robot = ""
+
         for _ in range(5):
             line1 = self.pSerial.readline().decode('utf-8').strip()
             if not line1:
@@ -357,14 +359,22 @@ class WLKATA_UART:
                 continue
 
             if line1.startswith('EXbox'):
+                exbox = line1
                 line2 = self.pSerial.readline().decode('utf-8').strip()
                 if line2.startswith(self._VERSION_PREFIX):
-                    return line1, line2
+                    robot = line2
+                    return exbox, robot
             elif line1.startswith(self._VERSION_PREFIX):
-                return line1
+                robot = line1
+                line2 = self.pSerial.readline().decode('utf-8').strip()
+                if line2.startswith('EXbox'):
+                    exbox = line2
+                    return exbox, robot
 
             time.sleep(0.1)
 
+        if exbox or robot:
+            return exbox, robot
         return "查询失败"
 
     def __error_except(self, f, num):

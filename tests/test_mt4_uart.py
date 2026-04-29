@@ -164,8 +164,9 @@ class TestMT4Status:
 
         version = robot.version()
 
-        assert isinstance(version, str)
-        assert "E4" in version
+        assert isinstance(version, tuple)
+        assert version[0] == ""
+        assert "E4" in version[1]
 
 
 class TestMT4InheritedFunctions:
