@@ -29,7 +29,18 @@ dependencies = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/wlkatapython"]
 
+# Include simulator JSON response configs (non-.py package data).
+[tool.hatch.build.targets.wheel.force-include]
+"src/wlkatapython/simulator/config/base_responses.json" = "wlkatapython/simulator/config/base_responses.json"
+"src/wlkatapython/simulator/config/mirobot_responses.json" = "wlkatapython/simulator/config/mirobot_responses.json"
+"src/wlkatapython/simulator/config/e4_responses.json" = "wlkatapython/simulator/config/e4_responses.json"
+"src/wlkatapython/simulator/config/mt4_responses.json" = "wlkatapython/simulator/config/mt4_responses.json"
+"src/wlkatapython/simulator/config/ms4220_responses.json" = "wlkatapython/simulator/config/ms4220_responses.json"
+
 [project.optional-dependencies]
+ble = [
+    "bleak>=0.21",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov",

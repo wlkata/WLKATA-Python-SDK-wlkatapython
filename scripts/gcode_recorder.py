@@ -36,12 +36,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, TextIO
 
-# Add project root to path for imports when running as script
+# Prefer installed package; when run from a checkout, put src/ on path.
 _project_root = Path(__file__).parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
+_src = _project_root / "src"
+if _src.is_dir() and str(_src) not in sys.path:
+    sys.path.insert(0, str(_src))
 
-from simulator import (
+from wlkatapython.simulator import (
     MirobotSimulator,
     E4Simulator,
     MT4Simulator,

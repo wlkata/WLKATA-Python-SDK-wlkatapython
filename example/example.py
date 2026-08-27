@@ -57,7 +57,7 @@ def example_with_simulator():
     import wlkatapython
     import serial
     import time
-    from simulator import MirobotSimulator, E4Simulator, MS4220Simulator
+    from wlkatapython.simulator import MirobotSimulator, E4Simulator, MS4220Simulator
     
     print("=== Mirobot Simulator Example ===\n")
     
@@ -68,12 +68,18 @@ def example_with_simulator():
     time.sleep(0.1)
     
     try:
-        # Connect using pyserial
+        # Option A — legacy pyserial (still supported; wrapped silently)
         ser = serial.Serial(port_path, 115200, timeout=2.0)
         
         # Initialize the Mirobot
         mirobot = wlkatapython.Mirobot_UART()
         mirobot.init(ser, -1)
+
+        # Option B — equivalent using the UART transport helper:
+        # mirobot = wlkatapython.Mirobot_UART()
+        # mirobot.init_uart(port_path, -1, baudrate=115200, timeout=2.0)
+        # ...
+        # mirobot.close()
         
         # Perform operations
         print("\n1. Homing...")

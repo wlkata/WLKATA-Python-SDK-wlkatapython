@@ -12,14 +12,14 @@ import time
 import pytest
 import serial
 
-from simulator import (
+from wlkatapython.simulator import (
     MirobotSimulator,
     E4Simulator,
     MT4Simulator,
     MS4220Simulator,
     create_simulator,
 )
-from simulator.virtual_serial import MockSerial
+from wlkatapython.simulator.virtual_serial import MockSerial
 
 
 # ============================================================================

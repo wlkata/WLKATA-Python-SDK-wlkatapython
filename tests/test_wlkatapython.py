@@ -62,7 +62,7 @@ class TestMirobotViaWlkatapython:
     def test_mirobot_full_workflow(self):
         """Test complete Mirobot workflow via wlkatapython."""
         import wlkatapython
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         sim.start()
@@ -114,7 +114,7 @@ class TestE4ViaWlkatapython:
     def test_e4_full_workflow(self):
         """Test complete E4 workflow via wlkatapython."""
         import wlkatapython
-        from simulator import E4Simulator
+        from wlkatapython.simulator import E4Simulator
         
         sim = E4Simulator()
         sim.start()
@@ -154,7 +154,7 @@ class TestMT4ViaWlkatapython:
     def test_mt4_full_workflow(self):
         """Test complete MT4 workflow via wlkatapython."""
         import wlkatapython
-        from simulator import MT4Simulator
+        from wlkatapython.simulator import MT4Simulator
         
         sim = MT4Simulator()
         sim.start()
@@ -190,7 +190,7 @@ class TestMS4220ViaWlkatapython:
     def test_ms4220_full_workflow(self):
         """Test complete MS4220 workflow via wlkatapython."""
         import wlkatapython
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         
         sim = MS4220Simulator(address=10)
         sim.start()
@@ -253,7 +253,7 @@ class TestMultipleRobots:
     def test_two_mirobots(self):
         """Test using two Mirobot instances simultaneously."""
         import wlkatapython
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim1 = MirobotSimulator(address=1)
         sim2 = MirobotSimulator(address=2)
@@ -295,7 +295,7 @@ class TestMultipleRobots:
     def test_mixed_robots(self):
         """Test using different robot types simultaneously."""
         import wlkatapython
-        from simulator import MirobotSimulator, E4Simulator, MS4220Simulator
+        from wlkatapython.simulator import MirobotSimulator, E4Simulator, MS4220Simulator
         
         mirobot_sim = MirobotSimulator()
         e4_sim = E4Simulator()

@@ -12,8 +12,8 @@ Supported models:
 
 Usage Example:
     
-    from simulator import MirobotSimulator
-    from simulator.virtual_serial import MockSerial
+    from wlkatapython.simulator import MirobotSimulator
+    from wlkatapython.simulator.virtual_serial import MockSerial
     
     # Create and start the simulator
     sim = MirobotSimulator()
@@ -31,7 +31,7 @@ Usage Example:
     serial.close()
     sim.stop()
 
-See the test/test_simulator.py for more examples.
+See tests/test_simulator.py for more examples.
 """
 
 from .simulated_hardware import (
@@ -58,6 +58,12 @@ from .response_config import (
     apply_state_scenario,
 )
 
+from .kinematics import (
+    MirobotKinematics,
+    apply_fk_to_state,
+    apply_ik_to_state,
+)
+
 __all__ = [
     # Hardware simulators
     "SimulatedHardware",
@@ -80,4 +86,8 @@ __all__ = [
     "create_custom_preset",
     "STATE_SCENARIOS",
     "apply_state_scenario",
+    # Kinematics
+    "MirobotKinematics",
+    "apply_fk_to_state",
+    "apply_ik_to_state",
 ]

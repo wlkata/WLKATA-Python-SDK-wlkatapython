@@ -59,19 +59,23 @@ def handle_version_query(command: str, match: Match, state: Any, context: Dict) 
 def handle_homing(command: str, match: Match, state: Any, context: Dict) -> Optional[str]:
     """
     Handle homing command (o105=N or $h).
-    Resets all angles to zero and sets home position.
+    Resets all angles to zero and sets home position via FK when available.
     """
     state.state = "Home"
     
     # Reset all angles to zero
     state.angle_A = state.angle_B = state.angle_C = 0.0
     state.angle_D = state.angle_X = state.angle_Y = state.angle_Z = 0.0
-    
-    # Set default home position
-    state.coordinate_X = 150.0
-    state.coordinate_Y = 0.0
-    state.coordinate_Z = 200.0
-    state.coordinate_RX = state.coordinate_RY = state.coordinate_RZ = 0.0
+
+    # Home Cartesian from FK at zero joints (Mirobot URDF); fallback constants
+    try:
+        from ..kinematics import apply_fk_to_state
+        apply_fk_to_state(state)
+    except Exception:
+        state.coordinate_X = 150.0
+        state.coordinate_Y = 0.0
+        state.coordinate_Z = 200.0
+        state.coordinate_RX = state.coordinate_RY = state.coordinate_RZ = 0.0
     
     # Schedule state change back to Idle
     def set_idle():
@@ -106,6 +110,7 @@ def handle_cartesian_movement(command: str, match: Match, state: Any, context: D
     """
     Handle Cartesian movement command (M20...).
     Supports both absolute (G90) and incremental (G91) modes.
+    For Mirobot, updates joint angles via IK after applying the Cartesian target.
     """
     state.state = "Run"
     
@@ -129,6 +134,8 @@ def handle_cartesian_movement(command: str, match: Match, state: Any, context: D
             state.coordinate_RY = state.coordinate_RY + val if is_incremental else val
         elif axis == "C":
             state.coordinate_RZ = state.coordinate_RZ + val if is_incremental else val
+
+    _maybe_apply_mirobot_ik(state, context)
     
     # Schedule state change back to Idle
     def set_idle():
@@ -143,6 +150,7 @@ def handle_angle_movement(command: str, match: Match, state: Any, context: Dict)
     """
     Handle angle/joint movement command (M21...).
     Supports both absolute (G90) and incremental (G91) modes.
+    For Mirobot, updates Cartesian pose via FK after applying joint angles.
     """
     state.state = "Run"
     
@@ -166,6 +174,8 @@ def handle_angle_movement(command: str, match: Match, state: Any, context: Dict)
             state.angle_B = state.angle_B + val if is_incremental else val
         elif axis == "C":
             state.angle_C = state.angle_C + val if is_incremental else val
+
+    _maybe_apply_mirobot_fk(state, context)
     
     # Schedule state change back to Idle
     def set_idle():
@@ -174,6 +184,35 @@ def handle_angle_movement(command: str, match: Match, state: Any, context: Dict)
     threading.Thread(target=set_idle, daemon=True).start()
     
     return "ok"
+
+
+def _is_mirobot_context(context: Dict) -> bool:
+    model = context.get("model")
+    if model is None:
+        # Shared handlers are used by Mirobot JSON config by default
+        return True
+    name = getattr(model, "value", model)
+    return str(name).lower() == "mirobot"
+
+
+def _maybe_apply_mirobot_fk(state: Any, context: Dict) -> None:
+    if not _is_mirobot_context(context):
+        return
+    try:
+        from ..kinematics import apply_fk_to_state
+        apply_fk_to_state(state)
+    except Exception:
+        pass
+
+
+def _maybe_apply_mirobot_ik(state: Any, context: Dict) -> None:
+    if not _is_mirobot_context(context):
+        return
+    try:
+        from ..kinematics import apply_ik_to_state
+        apply_ik_to_state(state)
+    except Exception:
+        pass
 
 
 def handle_expand_axis(command: str, match: Match, state: Any, context: Dict) -> Optional[str]:

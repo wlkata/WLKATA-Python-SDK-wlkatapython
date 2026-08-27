@@ -14,8 +14,8 @@ This module provides simulated hardware for testing the WLKATA robot control lib
 ### Basic Usage
 
 ```python
-from simulator import MirobotSimulator
-from simulator.virtual_serial import MockSerial
+from wlkatapython.simulator import MirobotSimulator
+from wlkatapython.simulator.virtual_serial import MockSerial
 
 # Create and start a Mirobot simulator
 sim = MirobotSimulator()
@@ -37,8 +37,8 @@ sim.stop()
 ### Using Context Manager
 
 ```python
-from simulator import MirobotSimulator
-from simulator.virtual_serial import MockSerial
+from wlkatapython.simulator import MirobotSimulator
+from wlkatapython.simulator.virtual_serial import MockSerial
 
 with MirobotSimulator() as sim:
     serial = MockSerial(sim.port_path)
@@ -50,9 +50,9 @@ with MirobotSimulator() as sim:
 ### With the Actual Library
 
 ```python
-from simulator import MirobotSimulator
-from simulator.virtual_serial import MockSerial
-from Mirobot_robot.Mirobot_UART import Mirobot_UART
+from wlkatapython.simulator import MirobotSimulator
+from wlkatapython.simulator.virtual_serial import MockSerial
+from wlkatapython import Mirobot_UART
 
 # Create simulator
 sim = MirobotSimulator()
@@ -67,7 +67,7 @@ mirobot.init(mock_serial, -1)
 
 # Test commands
 mirobot.homing()
-mirobot.writeangle(0, 45, 30, 0, 0, 0, 0)
+mirobot.writeAngle(0, 45, 30, 0, 0, 0, 0)
 
 # Check simulator state
 print(f"Current angles: X={sim.state.angle_X}, Y={sim.state.angle_Y}")
@@ -81,7 +81,7 @@ sim.stop()
 ### Factory Function
 
 ```python
-from simulator import create_simulator
+from wlkatapython.simulator import create_simulator
 
 # Create by model name
 mirobot = create_simulator("mirobot")
@@ -93,7 +93,7 @@ ms4220 = create_simulator("ms4220", address=10)
 ### Direct Instantiation
 
 ```python
-from simulator import MirobotSimulator, E4Simulator, MT4Simulator, MS4220Simulator
+from wlkatapython.simulator import MirobotSimulator, E4Simulator, MT4Simulator, MS4220Simulator
 
 # With RS485 addressing
 sim = MirobotSimulator(address=5)  # RS485 address 5
@@ -111,19 +111,19 @@ The simulator supports JSON-based configuration for defining command responses. 
 the command patterns from the handler logic and makes it easy to add custom commands.
 
 ```python
-from simulator import MirobotSimulator
+from wlkatapython.simulator import MirobotSimulator
 
 # Use JSON configuration from the default config file
 sim = MirobotSimulator(use_json_config=True)
 port = sim.start()
 
 # The simulator will now respond to commands defined in:
-# simulator/config/mirobot_responses.json
+# src/wlkatapython/simulator/config/mirobot_responses.json
 ```
 
 #### Adding Custom Commands via JSON
 
-Edit `simulator/config/mirobot_responses.json` to add custom commands:
+Edit `src/wlkatapython/simulator/config/mirobot_responses.json` to add custom commands:
 
 ```json
 {
@@ -148,7 +148,7 @@ Edit `simulator/config/mirobot_responses.json` to add custom commands:
 
 #### Creating Custom Handlers
 
-Define handler functions in `simulator/config/handlers.py`:
+Define handler functions in `src/wlkatapython/simulator/config/handlers.py`:
 
 ```python
 def handle_my_custom_command(command: str, match: Match, state: Any, context: Dict) -> str:
@@ -174,7 +174,7 @@ HANDLER_REGISTRY["handle_my_custom_command"] = handle_my_custom_command
 #### Loading Custom Configuration
 
 ```python
-from simulator import MirobotSimulator
+from wlkatapython.simulator import MirobotSimulator
 
 # Load from a custom JSON file
 sim = MirobotSimulator()
@@ -207,7 +207,7 @@ sim.add_json_command(
 ### Adding Custom Commands (Legacy)
 
 ```python
-from simulator import MirobotSimulator
+from wlkatapython.simulator import MirobotSimulator
 
 sim = MirobotSimulator()
 
@@ -246,7 +246,7 @@ sim.state.pump_pwm = 500
 ### Using Presets
 
 ```python
-from simulator import MirobotSimulator, apply_preset, apply_state_scenario
+from wlkatapython.simulator import MirobotSimulator, apply_preset, apply_state_scenario
 
 sim = MirobotSimulator()
 
@@ -336,17 +336,14 @@ On other platforms, use the provided `MockSerial` class for compatibility.
 ## Running Tests
 
 ```bash
-# Run the demo
-python test/test_simulator.py --demo
-
-# Run unit tests
-python test/test_simulator.py -v
+# From the project root (package on PYTHONPATH via pytest.ini)
+python -m pytest tests/test_simulator.py -v
 ```
 
 ## File Structure
 
 ```
-simulator/
+src/wlkatapython/simulator/
 ├── __init__.py           # Public API
 ├── simulated_hardware.py # Simulator implementations
 ├── virtual_serial.py     # Virtual serial port

@@ -683,3 +683,54 @@ class TestMirobotRS485:
         # Should have been processed correctly
         response = robot.read_message()
         assert "ok" in response
+
+
+class TestWaitIdle:
+    """Tests for waitIdle functionality (poll and event modes)."""
+
+    def test_setWaitMode_poll(self, mirobot):
+        """Test setting wait mode to poll."""
+        mirobot.setWaitMode("poll")
+        assert mirobot._WAIT_MODE == "poll"
+
+    def test_setWaitMode_event(self, mirobot):
+        """Test setting wait mode to event."""
+        mirobot.setWaitMode("event")
+        assert mirobot._WAIT_MODE == "event"
+
+    def test_setWaitMode_invalid(self, mirobot):
+        """Test that invalid wait mode raises ValueError."""
+        with pytest.raises(ValueError):
+            mirobot.setWaitMode("invalid")
+
+    def test_waitIdle_poll(self, mirobot_with_sim):
+        """Test waitIdle poll mode returns True after motion completes."""
+        robot, sim = mirobot_with_sim
+        robot.setWaitMode("poll")
+        robot.writeCoordinate(0, 0, x=100)
+        result = robot.waitIdle(timeout=5)
+        assert result is True
+
+    def test_waitIdle_poll_timeout(self, mirobot_with_sim):
+        """Test waitIdle poll mode returns False on timeout."""
+        robot, sim = mirobot_with_sim
+        robot.setWaitMode("poll")
+        sim.set_state(state="Run")
+        result = robot.waitIdle(timeout=1)
+        assert result is False
+
+    def test_waitIdle_event(self, mirobot_with_sim):
+        """Test waitIdle event mode returns True when auto-report pushes idle."""
+        robot, sim = mirobot_with_sim
+        sim.set_auto_report(True)
+        robot.setWaitMode("event")
+        robot.writeCoordinate(0, 0, x=100)
+        result = robot.waitIdle(timeout=5)
+        assert result is True
+
+    def test_waitIdle_event_timeout(self, mirobot_with_sim):
+        """Test waitIdle event mode returns False on timeout."""
+        robot, sim = mirobot_with_sim
+        robot.setWaitMode("event")
+        result = robot.waitIdle(timeout=1)
+        assert result is False

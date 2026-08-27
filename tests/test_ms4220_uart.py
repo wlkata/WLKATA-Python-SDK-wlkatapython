@@ -33,7 +33,7 @@ class TestMS4220SpeedControl:
     
     def test_speed_positive(self):
         """Test MS4220 positive speed setting."""
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         from wlkatapython.robots import MS4220_UART
         
         sim = MS4220Simulator(address=10)
@@ -57,7 +57,7 @@ class TestMS4220SpeedControl:
     
     def test_speed_negative(self):
         """Test MS4220 negative speed setting (reverse)."""
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         from wlkatapython.robots import MS4220_UART
         
         sim = MS4220Simulator(address=10)
@@ -81,7 +81,7 @@ class TestMS4220SpeedControl:
     
     def test_speed_zero(self):
         """Test MS4220 zero speed (stop)."""
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         from wlkatapython.robots import MS4220_UART
         
         sim = MS4220Simulator(address=10)
@@ -110,7 +110,7 @@ class TestMS4220SpeedControl:
     
     def test_speed_max(self):
         """Test MS4220 maximum speed."""
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         from wlkatapython.robots import MS4220_UART
         
         sim = MS4220Simulator(address=10)
@@ -135,7 +135,7 @@ class TestMS4220SpeedControl:
     @pytest.mark.parametrize("speed", [0, 10, 25, 50, 75, 100])
     def test_speed_values(self, speed):
         """Test MS4220 with various speed values."""
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         from wlkatapython.robots import MS4220_UART
         
         sim = MS4220Simulator(address=10)
@@ -163,7 +163,7 @@ class TestMS4220RS485:
     
     def test_different_addresses(self):
         """Test MS4220 with different RS485 addresses."""
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         from wlkatapython.robots import MS4220_UART
         
         for address in [1, 5, 10, 100, 255]:
@@ -188,7 +188,7 @@ class TestMS4220RS485:
     
     def test_sendmsg_with_address(self):
         """Test that sendMsg includes RS485 address prefix."""
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         from wlkatapython.robots import MS4220_UART
         
         sim = MS4220Simulator(address=15)
@@ -218,7 +218,7 @@ class TestMS4220InheritedFunctions:
     
     def test_read_message(self):
         """Test MS4220 read_message."""
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         from wlkatapython.robots import MS4220_UART
         
         sim = MS4220Simulator(address=10)
@@ -243,7 +243,7 @@ class TestMS4220InheritedFunctions:
     
     def test_message_print(self):
         """Test MS4220 message_print setting."""
-        from simulator import MS4220Simulator
+        from wlkatapython.simulator import MS4220Simulator
         from wlkatapython.robots import MS4220_UART
         
         sim = MS4220Simulator(address=10)

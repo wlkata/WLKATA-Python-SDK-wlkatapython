@@ -18,7 +18,7 @@ class TestVirtualSerialPort:
     
     def test_open_close(self):
         """Test opening and closing the virtual port."""
-        from simulator import VirtualSerialPort
+        from wlkatapython.simulator import VirtualSerialPort
         
         vsp = VirtualSerialPort()
         port_path = vsp.open()
@@ -34,7 +34,7 @@ class TestVirtualSerialPort:
     
     def test_context_manager(self):
         """Test using the virtual port as a context manager."""
-        from simulator import VirtualSerialPort
+        from wlkatapython.simulator import VirtualSerialPort
         
         with VirtualSerialPort() as vsp:
             assert vsp.is_open
@@ -43,8 +43,8 @@ class TestVirtualSerialPort:
     
     def test_write_read(self):
         """Test writing and reading data."""
-        from simulator import VirtualSerialPort
-        from simulator.virtual_serial import MockSerial
+        from wlkatapython.simulator import VirtualSerialPort
+        from wlkatapython.simulator.virtual_serial import MockSerial
         
         with VirtualSerialPort() as vsp:
             vsp.write_to_slave(b"Hello, World!\r\n")
@@ -58,8 +58,8 @@ class TestVirtualSerialPort:
     
     def test_multiple_messages(self):
         """Test sending multiple messages."""
-        from simulator import VirtualSerialPort
-        from simulator.virtual_serial import MockSerial
+        from wlkatapython.simulator import VirtualSerialPort
+        from wlkatapython.simulator.virtual_serial import MockSerial
         
         with VirtualSerialPort() as vsp:
             messages = [b"Line 1\r\n", b"Line 2\r\n", b"Line 3\r\n"]
@@ -83,8 +83,8 @@ class TestMockSerial:
     
     def test_mock_serial_write(self):
         """Test MockSerial write operation."""
-        from simulator import VirtualSerialPort
-        from simulator.virtual_serial import MockSerial
+        from wlkatapython.simulator import VirtualSerialPort
+        from wlkatapython.simulator.virtual_serial import MockSerial
         
         with VirtualSerialPort() as vsp:
             mock_serial = MockSerial(vsp.port_path, virtual_port=vsp)
@@ -96,8 +96,8 @@ class TestMockSerial:
     
     def test_mock_serial_read(self):
         """Test MockSerial read operation."""
-        from simulator import VirtualSerialPort
-        from simulator.virtual_serial import MockSerial
+        from wlkatapython.simulator import VirtualSerialPort
+        from wlkatapython.simulator.virtual_serial import MockSerial
         
         with VirtualSerialPort() as vsp:
             vsp.write_to_slave(b"X")
@@ -111,8 +111,8 @@ class TestMockSerial:
     
     def test_mock_serial_in_waiting(self):
         """Test MockSerial in_waiting property."""
-        from simulator import VirtualSerialPort
-        from simulator.virtual_serial import MockSerial
+        from wlkatapython.simulator import VirtualSerialPort
+        from wlkatapython.simulator.virtual_serial import MockSerial
         
         with VirtualSerialPort() as vsp:
             mock_serial = MockSerial(vsp.port_path, virtual_port=vsp)
@@ -130,8 +130,8 @@ class TestMockSerial:
     
     def test_mock_serial_flush(self):
         """Test MockSerial flush operations."""
-        from simulator import VirtualSerialPort
-        from simulator.virtual_serial import MockSerial
+        from wlkatapython.simulator import VirtualSerialPort
+        from wlkatapython.simulator.virtual_serial import MockSerial
         
         with VirtualSerialPort() as vsp:
             mock_serial = MockSerial(vsp.port_path, virtual_port=vsp)
@@ -148,42 +148,42 @@ class TestSimulatorFactory:
     
     def test_create_mirobot(self):
         """Test creating a Mirobot simulator."""
-        from simulator import create_simulator, MirobotSimulator
+        from wlkatapython.simulator import create_simulator, MirobotSimulator
         
         sim = create_simulator("mirobot")
         assert isinstance(sim, MirobotSimulator)
     
     def test_create_e4(self):
         """Test creating an E4 simulator."""
-        from simulator import create_simulator, E4Simulator
+        from wlkatapython.simulator import create_simulator, E4Simulator
         
         sim = create_simulator("E4")  # Case insensitive
         assert isinstance(sim, E4Simulator)
     
     def test_create_mt4(self):
         """Test creating an MT4 simulator."""
-        from simulator import create_simulator, MT4Simulator
+        from wlkatapython.simulator import create_simulator, MT4Simulator
         
         sim = create_simulator("MT4")
         assert isinstance(sim, MT4Simulator)
     
     def test_create_ms4220(self):
         """Test creating an MS4220 simulator."""
-        from simulator import create_simulator, MS4220Simulator
+        from wlkatapython.simulator import create_simulator, MS4220Simulator
         
         sim = create_simulator("ms4220")
         assert isinstance(sim, MS4220Simulator)
     
     def test_create_with_address(self):
         """Test creating simulator with RS485 address."""
-        from simulator import create_simulator
+        from wlkatapython.simulator import create_simulator
         
         sim = create_simulator("mirobot", address=5)
         assert sim.address == 5
     
     def test_create_invalid(self):
         """Test creating simulator with invalid model."""
-        from simulator import create_simulator
+        from wlkatapython.simulator import create_simulator
         
         with pytest.raises(ValueError):
             create_simulator("invalid_model")
@@ -194,17 +194,22 @@ class TestSimulatorState:
     
     def test_initial_state(self):
         """Test simulator initial state."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         
         assert sim.state.state == "Idle"
         assert sim.state.angle_X == 0.0
-        assert sim.state.coordinate_X == 150.0
+        # Default Cartesian comes from Mirobot FK at zero joints (URDF-based)
+        from wlkatapython.simulator.kinematics import MirobotKinematics
+        x0, y0, z0, _, _, _ = MirobotKinematics().forward([0.0] * 6)
+        assert sim.state.coordinate_X == pytest.approx(x0, abs=1e-3)
+        assert sim.state.coordinate_Y == pytest.approx(y0, abs=1e-3)
+        assert sim.state.coordinate_Z == pytest.approx(z0, abs=1e-3)
     
     def test_set_state(self):
         """Test setting simulator state."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         
@@ -220,7 +225,7 @@ class TestSimulatorState:
     
     def test_state_persistence(self):
         """Test that state persists across queries."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         sim.start()
@@ -248,7 +253,7 @@ class TestSimulatorCustomResponses:
     
     def test_add_command_response(self):
         """Test adding custom command response."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         sim.add_command_response(r"^CUSTOM$", "custom_ok")
@@ -270,7 +275,7 @@ class TestSimulatorCustomResponses:
     
     def test_add_command_with_handler(self):
         """Test adding custom command with handler."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         
@@ -298,7 +303,7 @@ class TestSimulatorCustomResponses:
     
     def test_set_command_response(self):
         """Test adding a new command response (set_command_response updates or adds)."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         
@@ -326,7 +331,7 @@ class TestSimulatorHeartbeat:
     
     def test_heartbeat_enabled(self):
         """Test that heartbeat messages are sent."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         sim.set_heartbeat(0.1, "heartbeat")
@@ -356,7 +361,7 @@ class TestSimulatorHeartbeat:
     
     def test_heartbeat_disabled(self):
         """Test that heartbeat can be disabled."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         sim.set_heartbeat(0, "")  # Disabled
@@ -373,7 +378,7 @@ class TestResponsePresets:
     
     def test_list_presets(self):
         """Test listing available presets."""
-        from simulator import list_presets
+        from wlkatapython.simulator import list_presets
         
         presets = list_presets()
         
@@ -385,7 +390,7 @@ class TestResponsePresets:
     
     def test_get_preset(self):
         """Test getting a preset."""
-        from simulator import get_preset
+        from wlkatapython.simulator import get_preset
         
         preset = get_preset("mirobot_v1")
         
@@ -395,14 +400,14 @@ class TestResponsePresets:
     
     def test_get_invalid_preset(self):
         """Test getting an invalid preset."""
-        from simulator import get_preset
+        from wlkatapython.simulator import get_preset
         
         with pytest.raises(KeyError):
             get_preset("invalid_preset")
     
     def test_apply_preset(self):
         """Test applying a preset."""
-        from simulator import MirobotSimulator, apply_preset
+        from wlkatapython.simulator import MirobotSimulator, apply_preset
         
         sim = MirobotSimulator()
         apply_preset(sim, "mirobot_v2")
@@ -411,7 +416,7 @@ class TestResponsePresets:
     
     def test_create_custom_preset(self):
         """Test creating a custom preset."""
-        from simulator import create_custom_preset
+        from wlkatapython.simulator import create_custom_preset
         
         custom = create_custom_preset(
             name="custom",
@@ -428,7 +433,7 @@ class TestStateScenarios:
     
     def test_apply_state_scenario(self):
         """Test applying a state scenario."""
-        from simulator import MirobotSimulator, apply_state_scenario
+        from wlkatapython.simulator import MirobotSimulator, apply_state_scenario
         
         sim = MirobotSimulator()
         apply_state_scenario(sim, "extended_position")
@@ -439,7 +444,7 @@ class TestStateScenarios:
     
     def test_apply_pump_active_scenario(self):
         """Test applying pump active scenario."""
-        from simulator import MirobotSimulator, apply_state_scenario
+        from wlkatapython.simulator import MirobotSimulator, apply_state_scenario
         
         sim = MirobotSimulator()
         apply_state_scenario(sim, "pump_active")
@@ -448,7 +453,7 @@ class TestStateScenarios:
     
     def test_apply_invalid_scenario(self):
         """Test applying an invalid scenario."""
-        from simulator import MirobotSimulator, apply_state_scenario
+        from wlkatapython.simulator import MirobotSimulator, apply_state_scenario
         
         sim = MirobotSimulator()
         
@@ -461,7 +466,7 @@ class TestSimulatorContextManager:
     
     def test_context_manager(self):
         """Test using simulator as context manager."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         with MirobotSimulator() as sim:
             assert sim.port_path is not None
@@ -476,7 +481,7 @@ class TestSimulatorContextManager:
     
     def test_context_manager_cleanup(self):
         """Test that context manager cleans up properly."""
-        from simulator import MirobotSimulator
+        from wlkatapython.simulator import MirobotSimulator
         
         sim = MirobotSimulator()
         

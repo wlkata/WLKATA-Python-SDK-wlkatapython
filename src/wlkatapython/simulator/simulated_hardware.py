@@ -111,6 +111,7 @@ class SimulatedHardware:
         self._heartbeat_thread: Optional[threading.Thread] = None
         self._heartbeat_interval: float = 0.0  # 0 = disabled
         self._heartbeat_message: str = ""
+        self._auto_report: bool = False
         self._command_responses: List[Tuple[Pattern, CommandResponse]] = []
         self._custom_handlers: Dict[str, Callable] = {}
         self._message_flag = False  # Debug printing
@@ -130,7 +131,7 @@ class SimulatedHardware:
         
         Args:
             config_path: Path to JSON config file. If None, uses the default
-                        config for this model from simulator/config/
+                        config for this model from ``wlkatapython.simulator.config``.
         """
         from .config.config_loader import ResponseConfigLoader
         
@@ -280,6 +281,31 @@ class SimulatedHardware:
             if hasattr(self.state, key):
                 setattr(self.state, key, value)
     
+    def set_auto_report(self, enabled: bool):
+        """Enable or disable auto-report after motion commands.
+
+        When enabled, the simulator sends a status line automatically
+        after motion commands complete (state returns to Idle).
+
+        Args:
+            enabled: True to enable, False to disable.
+        """
+        self._auto_report = enabled
+
+    def _build_status_response(self):
+        """Build a status response string from current state."""
+        s = self.state
+        return (f"<{s.state},"
+                f"Angle(ABCDXYZ):{s.angle_A:.1f},{s.angle_B:.1f},"
+                f"{s.angle_C:.1f},{s.angle_D:.1f},{s.angle_X:.1f},"
+                f"{s.angle_Y:.1f},{s.angle_Z:.1f},"
+                f"Cartesian coordinate(XYZ RxRyRz):{s.coordinate_X:.1f},"
+                f"{s.coordinate_Y:.1f},{s.coordinate_Z:.1f},"
+                f"{s.coordinate_RX:.1f},{s.coordinate_RY:.1f},"
+                f"{s.coordinate_RZ:.1f},"
+                f"Pump PWM:{s.pump_pwm},Valve PWM:{s.valve_pwm},"
+                f"Motion_MODE:{s.motion_mode}>")
+
     def message_print(self, flag: bool):
         """Enable/disable debug message printing."""
         self._message_flag = flag
@@ -432,6 +458,13 @@ class MirobotSimulator(SimulatedHardware):
         super().__init__(RobotModel.MIROBOT, address, use_json_config)
         self._firmware_version = "Mirobot V1.0.0"
         self._exbox_version = "EXbox V1.0.0"
+        # Align default Cartesian pose with FK at zero joints
+        try:
+            from .kinematics import apply_fk_to_state
+            apply_fk_to_state(self.state)
+        except Exception:
+            pass
+
     
     def _register_default_commands(self):
         """Register Mirobot-specific command handlers."""
@@ -460,20 +493,21 @@ class MirobotSimulator(SimulatedHardware):
         
         # Homing command
         def handle_homing(cmd, match, state):
+            from .kinematics import apply_fk_to_state
+
             state.state = "Home"
             # Reset all angles to zero
             state.angle_A = state.angle_B = state.angle_C = 0.0
             state.angle_D = state.angle_X = state.angle_Y = state.angle_Z = 0.0
-            # Set default home position
-            state.coordinate_X = 150.0
-            state.coordinate_Y = 0.0
-            state.coordinate_Z = 200.0
-            state.coordinate_RX = state.coordinate_RY = state.coordinate_RZ = 0.0
+            # Home Cartesian from Mirobot FK at zero joints
+            apply_fk_to_state(state)
             
             # Schedule state change back to Idle
             def set_idle():
                 time.sleep(0.5)
                 state.state = "Idle"
+                if self._auto_report:
+                    self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
             
             return "ok"
@@ -503,8 +537,10 @@ class MirobotSimulator(SimulatedHardware):
         
         self.add_command_response(r"^F(\d+)$", "", handle_speed)
         
-        # Cartesian movement (M20)
+        # Cartesian movement (M20) — update pose then IK for joints
         def handle_cartesian(cmd, match, state):
+            from .kinematics import apply_ik_to_state
+
             state.state = "Run"
             
             # Check if incremental mode (G91) or absolute mode (G90)
@@ -526,18 +562,24 @@ class MirobotSimulator(SimulatedHardware):
                     state.coordinate_RY = state.coordinate_RY + val if is_incremental else val
                 elif axis == "C":
                     state.coordinate_RZ = state.coordinate_RZ + val if is_incremental else val
+
+            apply_ik_to_state(state)
             
             def set_idle():
                 time.sleep(0.2)
                 state.state = "Idle"
+                if self._auto_report:
+                    self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
             
             return "ok"
         
         self.add_command_response(r"^M20.*", "", handle_cartesian)
         
-        # Angle movement (M21)
+        # Angle movement (M21) — update joints then FK for Cartesian
         def handle_angle(cmd, match, state):
+            from .kinematics import apply_fk_to_state
+
             state.state = "Run"
             
             # Check if incremental mode (G91) or absolute mode (G90)
@@ -559,10 +601,14 @@ class MirobotSimulator(SimulatedHardware):
                     state.angle_B = state.angle_B + val if is_incremental else val
                 elif axis == "C":
                     state.angle_C = state.angle_C + val if is_incremental else val
+
+            apply_fk_to_state(state)
             
             def set_idle():
                 time.sleep(0.2)
                 state.state = "Idle"
+                if self._auto_report:
+                    self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
             
             return "ok"
@@ -733,6 +779,8 @@ class E4Simulator(SimulatedHardware):
             def set_idle():
                 time.sleep(0.5)
                 state.state = "Idle"
+                if self._auto_report:
+                    self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
             
             return "ok"
@@ -782,6 +830,8 @@ class E4Simulator(SimulatedHardware):
             def set_idle():
                 time.sleep(0.2)
                 state.state = "Idle"
+                if self._auto_report:
+                    self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
             
             return "ok"
@@ -809,6 +859,8 @@ class E4Simulator(SimulatedHardware):
             def set_idle():
                 time.sleep(0.2)
                 state.state = "Idle"
+                if self._auto_report:
+                    self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
             
             return "ok"
@@ -867,6 +919,8 @@ class MT4Simulator(SimulatedHardware):
             def set_idle():
                 time.sleep(0.5)
                 state.state = "Idle"
+                if self._auto_report:
+                    self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
             
             return "ok"
@@ -916,6 +970,8 @@ class MT4Simulator(SimulatedHardware):
             def set_idle():
                 time.sleep(0.2)
                 state.state = "Idle"
+                if self._auto_report:
+                    self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
             
             return "ok"
@@ -943,6 +999,8 @@ class MT4Simulator(SimulatedHardware):
             def set_idle():
                 time.sleep(0.2)
                 state.state = "Idle"
+                if self._auto_report:
+                    self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
             
             return "ok"

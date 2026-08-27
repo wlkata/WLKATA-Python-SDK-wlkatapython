@@ -1,18 +1,27 @@
 """Base class for WLKATA robotic arm and controller communication.
 
 This class provides the core functionality for communicating with WLKATA robotic
-devices via UART or RS485 interfaces. It includes methods for sending commands,
+devices via UART, RS485, WiFi, or BLE. It includes methods for sending commands,
 receiving responses, and basic robot control operations.
 
 All WLKATA robot classes inherit from this base class.
+
+Connection objects are normalized into a transport-compatible surface and
+stored on ``pSerial``. Legacy ``serial.Serial`` instances are wrapped in a
+``SerialAdapter`` (``disconnect()`` does not close the user port). Native
+transports (``UartTransport``, ``WifiTransport``, ``BleTransport``) may be
+passed directly or created via ``init_uart`` / ``init_wifi`` / ``init_ble``.
 """
 
 import logging
 import re
 import time
 import warnings
+from typing import Optional
 
 from serial import Serial
+
+from ..transports import Connection, SerialAdapter, Transport
 
 logger = logging.getLogger(__name__)
 
@@ -40,14 +49,20 @@ class WLKATA_UART:
     _VERSION_PREFIX = "Mirobot"
     _ANGLE_MAP = _ANGLE_MAP
     _COORDINATE_MAP = _COORDINATE_MAP
+    _WAIT_MODE = "poll"
 
-    def __init__(self, p: Serial = None, adr: int = None):
-        """Initialize the WLKATA UART communication interface.
+    def __init__(
+        self,
+        p: Optional[Connection] = None,
+        adr: Optional[int] = None,
+    ):
+        """Initialize the WLKATA communication interface.
 
         Args:
-            p: Serial port object (e.g., serial.Serial instance).
-                Defaults to None (call init() later to set).
-            adr (int): Robot address for RS485 (-1 for UART mode, 0-255 for RS485).
+            p: ``serial.Serial`` or a ``Transport`` (UART/WiFi/BLE). Defaults
+                to None (call ``init()`` or ``init_uart`` / ``init_wifi`` /
+                ``init_ble`` later).
+            adr: Robot address for RS485 (-1 for UART mode, 0-255 for RS485).
                 Defaults to None (call init() later to set).
         """
         self.mirobot_state_all = _DeprecatedKeyDict({
@@ -60,18 +75,155 @@ class WLKATA_UART:
         })
         self.gpio_state = [0, 0, 0, 0]
 
-        self.pSerial = p
-        self.address = adr
+        # After normalize, always a Transport (Serial is wrapped).
+        self.pSerial: Optional[Transport] = (
+            self._normalize_connection(p) if p is not None else None
+        )
+        self.address: Optional[int] = adr
 
-    def init(self, p, adr):
-        """Initialize the serial communication.
+    @staticmethod
+    def _normalize_connection(p: Connection) -> Transport:
+        """Return a Transport, wrapping ``serial.Serial`` when needed.
+
+        * ``Transport`` instances are connected when not already connected.
+        * ``serial.Serial`` is wrapped in ``SerialAdapter`` so ``disconnect()``
+          will not close a user-owned port.
+        """
+        if isinstance(p, Transport):
+            if not p.is_connected:
+                p.connect()
+            return p
+
+        if isinstance(p, Serial):
+            return SerialAdapter(p)
+
+        raise TypeError(
+            "connection must be serial.Serial or a Transport "
+            f"(UartTransport, WifiTransport, BleTransport, SerialAdapter); "
+            f"got {type(p)!r}"
+        )
+
+    def init(self, p: Connection, adr: int) -> None:
+        """Initialize communication with a serial or transport connection.
 
         Args:
-            p: Serial port object (e.g., serial.Serial instance).
-            adr (int): Robot address for RS485 (-1 for UART mode, 0-255 for RS485).
+            p: ``serial.Serial`` or a ``Transport`` (UART/WiFi/BLE/SerialAdapter).
+                Raw serial ports are wrapped so robot ``close()`` does not close
+                them.
+            adr: Robot address for RS485 (-1 for point-to-point / UART mode,
+                0-255 for RS485 address framing).
         """
-        self.pSerial = p
+        self.pSerial = self._normalize_connection(p)
         self.address = adr
+
+    def init_uart(
+        self,
+        port: str,
+        adr: int = -1,
+        baudrate: int = 115200,
+        timeout: Optional[float] = 1,
+    ) -> None:
+        """Open a UART/serial connection and bind it to this robot.
+
+        Args:
+            port: Serial port name (e.g. ``"COM3"`` or ``"/dev/ttyUSB0"``).
+            adr: RS485 address, or -1 for UART (default).
+            baudrate: Baud rate. Defaults to 115200.
+            timeout: Read timeout in seconds. Defaults to 1.
+        """
+        from ..transports import UartTransport
+
+        transport = UartTransport(port, baudrate=baudrate, timeout=timeout)
+        transport.connect()
+        self.pSerial = transport
+        self.address = adr
+
+    def init_wifi(
+        self,
+        host: str,
+        port: int,
+        adr: int = -1,
+        protocol: str = "tcp",
+        timeout: Optional[float] = 1,
+    ) -> None:
+        """Open a WiFi (TCP/UDP) connection and bind it to this robot.
+
+        Args:
+            host: Robot IP address or hostname.
+            port: TCP/UDP port.
+            adr: RS485-style address framing, or -1 (default).
+            protocol: ``"tcp"`` (default) or ``"udp"``.
+            timeout: Read timeout in seconds. Defaults to 1.
+        """
+        from ..transports import WifiTransport
+
+        transport = WifiTransport(host, port, protocol=protocol, timeout=timeout)
+        transport.connect()
+        self.pSerial = transport
+        self.address = adr
+
+    def init_ble(
+        self,
+        name: str,
+        adr: int = -1,
+        timeout: Optional[float] = 5,
+        scan_timeout: float = 10.0,
+        write_uuid: Optional[str] = None,
+        notify_uuid: Optional[str] = None,
+    ) -> None:
+        """Open a Bluetooth LE connection by advertised device name.
+
+        Scans for a BLE peripheral whose name matches ``name`` exactly, then
+        connects using the WLKATA Extender Box GATT characteristics by default.
+
+        Requires the optional ``bleak`` dependency
+        (``pip install wlkatapython-dev[ble]`` or ``pip install bleak``).
+
+        Args:
+            name: Exact Bluetooth advertised name (e.g. ``"ExBox-E510"``).
+            adr: RS485-style address framing, or -1 (default).
+            timeout: Read timeout in seconds. Defaults to 5.
+            scan_timeout: How long to scan for the device, in seconds.
+            write_uuid: Optional GATT write characteristic UUID. Defaults to
+                the WLKATA Extender Box write characteristic.
+            notify_uuid: Optional GATT notify characteristic UUID. Defaults to
+                the WLKATA Extender Box notify characteristic.
+
+        Raises:
+            RuntimeError: If no device matches ``name``, or if more than one
+                device advertises the same name (connection is aborted after a
+                warning so the wrong unit is never selected).
+        """
+        from ..transports.ble import (
+            DEFAULT_NOTIFY_UUID,
+            DEFAULT_WRITE_UUID,
+            BleTransport,
+            resolve_ble_address_by_name,
+        )
+
+        ble_address = resolve_ble_address_by_name(name, scan_timeout=scan_timeout)
+        logger.info("BLE device %r resolved to address %s", name, ble_address)
+
+        transport = BleTransport(
+            ble_address,
+            write_uuid=write_uuid or DEFAULT_WRITE_UUID,
+            notify_uuid=notify_uuid or DEFAULT_NOTIFY_UUID,
+            timeout=timeout,
+        )
+        transport.connect()
+        self.pSerial = transport
+        self.address = adr
+
+    def close(self) -> None:
+        """Disconnect the current transport.
+
+        For connections created from a user ``serial.Serial`` (wrapped in
+        ``SerialAdapter``), this is a no-op — close the serial port yourself.
+        For ``UartTransport`` / ``WifiTransport`` / ``BleTransport``, this
+        tears down the link.
+        """
+        if self.pSerial is not None:
+            self.pSerial.disconnect()
 
     def message_print(self, flag):
         """Enable or disable message printing for debugging.
@@ -88,6 +240,19 @@ class WLKATA_UART:
             logger.setLevel(logging.DEBUG if flag else logging.WARNING)
         else:
             logger.setLevel(flag)
+
+    def setWaitMode(self, mode):
+        """Set the idle-wait strategy.
+
+        Args:
+            mode (str): "poll" for active polling, "event" for firmware push.
+
+        Raises:
+            ValueError: If mode is not "poll" or "event".
+        """
+        if mode not in ("poll", "event"):
+            raise ValueError(f"Unknown wait mode: {mode!r}")
+        self._WAIT_MODE = mode
 
     def readMessage(self):
         """Read a message from the serial port.
@@ -779,16 +944,55 @@ class WLKATA_UART:
         else:
             self.__error_except(self.gpio_enable_file_read, 3)
 
-    def waitIdle(self, count=3):
-        if count == 0:
-            return True
+    def waitIdle(self, timeout=30):
+        """Block until the robot reports Idle.
+
+        Uses one of two strategies depending on ``_WAIT_MODE``:
+
+        - ``"poll"``: repeatedly query status until N consecutive idle reads.
+        - ``"event"``: wait for the robot to push a status line after motion
+          (requires firmware auto-report to be enabled).
+
+        Args:
+            timeout (float): Maximum seconds to wait. 0 means no timeout.
+
+        Returns:
+            bool: True if idle was reached, False on timeout.
+        """
+        if self._WAIT_MODE == "event":
+            return self._waitIdleEvent(timeout)
+        return self._waitIdlePoll(timeout)
+
+    def _waitIdlePoll(self, timeout=30, count=3):
+        """Poll status until *count* consecutive Idle reads or *timeout*."""
+        deadline = time.monotonic() + timeout if timeout else None
         counter = 0
         while counter < count:
+            if deadline and time.monotonic() > deadline:
+                return False
             if self.getState() == "Idle":
                 counter += 1
             else:
                 counter = 0
             time.sleep(0.2)
+        return True
+
+    def _waitIdleEvent(self, timeout=30):
+        """Block on serial read until the robot pushes an Idle status line."""
+        old_timeout = self.pSerial.timeout
+        self.pSerial.timeout = timeout if timeout else None
+        try:
+            while True:
+                raw = self.pSerial.readline()
+                if not raw:
+                    return False
+                line = raw.decode('utf-8').strip()
+                if line.startswith("<") and line.endswith(">"):
+                    data = self.__parse_response(line)
+                    if isinstance(data, dict) and data["state"] == "Idle":
+                        return True
+        finally:
+            self.pSerial.timeout = old_timeout
 
     # Deprecated aliases -- will be removed in v1.2
     @deprecated_alias("readMessage", version=1.2)

@@ -14,9 +14,9 @@ import tempfile
 import serial
 from pathlib import Path
 
-from simulator import MirobotSimulator, create_simulator
-from simulator.config.config_loader import ResponseConfigLoader
-from simulator.config.handlers import (
+from wlkatapython.simulator import MirobotSimulator, create_simulator
+from wlkatapython.simulator.config.config_loader import ResponseConfigLoader
+from wlkatapython.simulator.config.handlers import (
     get_handler,
     register_handler,
     HANDLER_REGISTRY,
@@ -102,7 +102,7 @@ class TestConfigLoader:
         loader = ResponseConfigLoader()
         loader.load_from_dict(config)
         
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.simulated_hardware import RobotState
         state = RobotState()
         context = {}
         
@@ -116,7 +116,7 @@ class TestConfigLoader:
         loader = ResponseConfigLoader()
         loader.load_from_dict({"commands": [], "custom_commands": [], "settings": {}})
         
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.simulated_hardware import RobotState
         state = RobotState()
         
         matched, response = loader.process_command("UNKNOWN", state, {})
@@ -172,8 +172,8 @@ class TestHandlers:
     
     def test_handler_modifies_state(self):
         """Test that handlers can modify robot state."""
-        from simulator.simulated_hardware import RobotState
-        from simulator.config.handlers import handle_pwm_control
+        from wlkatapython.simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.config.handlers import handle_pwm_control
         import re
         
         state = RobotState()
@@ -397,7 +397,7 @@ class TestConfigFile:
             assert len(loader2.commands) == 2
             
             # Verify commands work
-            from simulator.simulated_hardware import RobotState
+            from wlkatapython.simulator.simulated_hardware import RobotState
             state = RobotState()
             
             matched, response = loader2.process_command("T1", state, {})
@@ -521,7 +521,7 @@ class TestCaseInsensitive:
         loader = ResponseConfigLoader()
         loader.load_default_config("mirobot")
         
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.simulated_hardware import RobotState
         state = RobotState()
         
         # Send lowercase version of $V command
@@ -533,7 +533,7 @@ class TestCaseInsensitive:
         loader = ResponseConfigLoader()
         loader.load_default_config("mirobot")
         
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.simulated_hardware import RobotState
         state = RobotState()
         
         # Send mixed case movement command
@@ -545,7 +545,7 @@ class TestCaseInsensitive:
         loader = ResponseConfigLoader()
         loader.load_default_config("mirobot")
         
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.simulated_hardware import RobotState
         state = RobotState()
         
         # Send uppercase command
@@ -558,8 +558,8 @@ class TestModelSpecificHandlers:
     
     def test_mirobot_status_format(self):
         """Test Mirobot status response format (6-axis)."""
-        from simulator.config.handlers import handle_mirobot_status_query
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.config.handlers import handle_mirobot_status_query
+        from wlkatapython.simulator.simulated_hardware import RobotState
         
         state = RobotState()
         state.angle_X = 10.0
@@ -575,8 +575,8 @@ class TestModelSpecificHandlers:
     
     def test_e4_status_format(self):
         """Test E4 status response format (4-axis)."""
-        from simulator.config.handlers import handle_e4_status_query
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.config.handlers import handle_e4_status_query
+        from wlkatapython.simulator.simulated_hardware import RobotState
         
         state = RobotState()
         state.angle_X = 15.0
@@ -592,8 +592,8 @@ class TestModelSpecificHandlers:
     
     def test_e4_angle_movement(self):
         """Test E4 angle movement (4-axis only)."""
-        from simulator.config.handlers import handle_e4_angle_movement
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.config.handlers import handle_e4_angle_movement
+        from wlkatapython.simulator.simulated_hardware import RobotState
         import re
         
         state = RobotState()
@@ -612,8 +612,8 @@ class TestModelSpecificHandlers:
     
     def test_ms4220_status_format(self):
         """Test MS4220 status response format."""
-        from simulator.config.handlers import handle_ms4220_status_query
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.config.handlers import handle_ms4220_status_query
+        from wlkatapython.simulator.simulated_hardware import RobotState
         
         state = RobotState()
         state.motor_position = 1000
@@ -628,8 +628,8 @@ class TestModelSpecificHandlers:
     
     def test_ms4220_relative_movement(self):
         """Test MS4220 relative movement."""
-        from simulator.config.handlers import handle_ms4220_relative
-        from simulator.simulated_hardware import RobotState
+        from wlkatapython.simulator.config.handlers import handle_ms4220_relative
+        from wlkatapython.simulator.simulated_hardware import RobotState
         import re
         
         state = RobotState()
