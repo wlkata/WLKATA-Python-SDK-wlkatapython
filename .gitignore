@@ -219,3 +219,6 @@ __marimo__/
 
 gcode_log.txt
 
+# Local release helper (not shared)
+scripts/release.sh
+
