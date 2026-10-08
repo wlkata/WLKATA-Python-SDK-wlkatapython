@@ -13,7 +13,7 @@ copyright = '2024, DS'
 author = 'DS'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.0.dev1'
+release = '1.0.1'
 version = '1.0'
 
 # -- General configuration ---------------------------------------------------

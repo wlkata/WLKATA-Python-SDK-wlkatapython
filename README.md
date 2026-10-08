@@ -2,7 +2,7 @@
 
 #### Python version 3.9.0
 
-#### wlkatapython version 1.0.0
+#### wlkatapython version 1.0.1
 
 #### License: MIT
 
