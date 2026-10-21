@@ -10,7 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - name: Checkout release tag
+      if: github.event_name != 'workflow_dispatch'
+      uses: actions/checkout@v6
+
+    - name: Checkout latest dev
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/checkout@v6
+      with:
+        ref: dev
 
     - name: Set up uv
       uses: astral-sh/setup-uv@v8.0.0
@@ -30,6 +38,7 @@ jobs:
         path: dist/
 
   publish:
+    if: github.ref_type == 'tag'
     needs: [build]
     runs-on: ubuntu-latest
     environment: testpypi
@@ -47,6 +56,24 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v8
+      with:
+        name: dist
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
 
   github-release:
     if: github.ref_type == 'tag'
