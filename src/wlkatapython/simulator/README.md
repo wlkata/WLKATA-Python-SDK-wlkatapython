@@ -316,7 +316,26 @@ On other platforms, use the provided `MockSerial` class for compatibility.
 | `M3 SN` | PWM control | `M3 S500` |
 | `FN` | Speed control | `F80` |
 | `M21G9xG0yX...` | Angle movement | `M21G90G00X45Y30Z0A0B0C0` |
-| `M20G9xG0yX...` | Cartesian movement | `M20G90G01X100Y50Z150A0B0C0` |
+| `M20G9xG0yX...` | Cartesian movement | `M20G90G01X200Y50Z150A0B0C0` |
+
+The Mirobot simulator converts between joints and coordinates the way a real
+Mirobot (firmware 20240820) does, checked against the arm in
+`tests/data/mirobot_hardware_poses.json` (`kinematics/mirobot.py`):
+
+- At zero joints it reports X 198.67, Y 0, Z 230.72 with Rx, Ry, Rz = 0 (tool
+  pointing down). Rx, Ry, Rz are Z-Y-X Euler angles; of the two equivalent
+  triples it reports the one whose Rx is nearest J4.
+- A coordinate move takes the joint solution nearest the current joints and
+  reports the pose reached: about 0.28 mm below the target along the tool,
+  because the firmware solves with a 24.0 mm tool and reports with 24.28 mm.
+  `G91` steps add to the last target.
+- A pose outside the workspace or the joint limits gets
+  `Error,E118,The given location is outside the workspace.` and no motion.
+  Switching between coordinate and joint moves prints
+  `Info,M20: Cartesian mode start.` / `Info,M21: Angle mode start.`
+  (status `Motion_MODE` 1 / 0). Status lines have three decimals.
+- The joint limits (`JOINT_LIMITS_DEG`) are the 3D model's until the arm's own
+  are measured.
 
 ### GPIO Commands (Mirobot)
 

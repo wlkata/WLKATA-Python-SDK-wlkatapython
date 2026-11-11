@@ -45,19 +45,38 @@ class TestBaseHandlers:
         assert state.speed == 50
 
     def test_cartesian_and_angle_absolute(self, state):
-        ctx = {"model": "mirobot"}
+        from wlkatapython.simulator.kinematics import MirobotKinematics
+
+        sent = []
+        ctx = {"model": "mirobot", "send_response": sent.append}
         H.handle_cartesian_movement(
-            "M20G90G00X100Y20Z30A1B2C3", None, state, ctx
+            "M20G90G00X200Y20Z180A1B2C3", None, state, ctx
         )
-        assert state.coordinate_X == 100.0
+        # IK moved the joints; the pose reported is where they are (within 0.3 mm of the target)
+        assert state.angle_X != 0.0
+        assert state.coordinate_X == pytest.approx(200.0, abs=0.3)
+        assert state.coordinate_RX == pytest.approx(1.0, abs=1e-6)
         assert state.state == "Run"
+        assert state.motion_mode == 1
+        assert sent == ["Info,M20: Cartesian mode start."]
+
+        # Outside the workspace: E118, and nothing moves
+        joints = (state.angle_X, state.angle_Y, state.angle_Z, state.angle_A, state.angle_B, state.angle_C)
+        sent.clear()
+        H.handle_cartesian_movement("M20G90G00X400Y0Z200A0B0C0", None, state, ctx)
+        assert sent == ["Error,E118,The given location is outside the workspace."]
+        assert (state.angle_X, state.angle_Y, state.angle_Z, state.angle_A, state.angle_B, state.angle_C) == joints
+
         H.handle_angle_movement(
             "M21G90G00X10Y20Z30A40B50C60", None, state, ctx
         )
         assert state.angle_X == 10.0
         assert state.angle_A == 40.0
-        # FK should have updated cartesian after angle move
-        assert state.coordinate_X != 100.0 or state.angle_X == 10.0
+        assert sent[-1] == "Info,M21: Angle mode start."
+        # FK updated the pose after the angle move
+        pose = (state.coordinate_X, state.coordinate_Y, state.coordinate_Z,
+                state.coordinate_RX, state.coordinate_RY, state.coordinate_RZ)
+        assert pose == pytest.approx(MirobotKinematics().forward([10, 20, 30, 40, 50, 60]), abs=1e-9)
 
     def test_cartesian_incremental(self, state):
         state.coordinate_X = 10.0

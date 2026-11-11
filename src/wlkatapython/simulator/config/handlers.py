@@ -25,18 +25,8 @@ def handle_status_query(command: str, match: Match, state: Any, context: Dict) -
     Handle status query command (?).
     Returns full robot status in the expected format.
     """
-    return (
-        f"<{state.state},"
-        f"Angle(ABCDXYZ):{state.angle_A:.1f},{state.angle_B:.1f},"
-        f"{state.angle_C:.1f},{state.angle_D:.1f},{state.angle_X:.1f},"
-        f"{state.angle_Y:.1f},{state.angle_Z:.1f},"
-        f"Cartesian coordinate(XYZ RxRyRz):{state.coordinate_X:.1f},"
-        f"{state.coordinate_Y:.1f},{state.coordinate_Z:.1f},"
-        f"{state.coordinate_RX:.1f},{state.coordinate_RY:.1f},"
-        f"{state.coordinate_RZ:.1f},"
-        f"Pump PWM:{state.pump_pwm},Valve PWM:{state.valve_pwm},"
-        f"Motion_MODE:{state.motion_mode}>"
-    )
+    from ..simulated_hardware import mirobot_status_line
+    return mirobot_status_line(state)
 
 
 def handle_version_query(command: str, match: Match, state: Any, context: Dict) -> str:
@@ -110,15 +100,30 @@ def handle_cartesian_movement(command: str, match: Match, state: Any, context: D
     """
     Handle Cartesian movement command (M20...).
     Supports both absolute (G90) and incremental (G91) modes.
-    For Mirobot, updates joint angles via IK after applying the Cartesian target.
+    For Mirobot, moves the joints to the target by IK and reports the pose
+    reached, like the firmware; a pose outside the workspace gets E118 and
+    no motion.
     """
-    state.state = "Run"
-    
     # Check if incremental mode (G91) or absolute mode (G90)
     is_incremental = "G91" in command.upper()
-    
+
     # Parse coordinates from command (case-insensitive)
     coords = re.findall(r"([XYZABC])([-\d.]+)", command, re.IGNORECASE)
+    if _is_mirobot_context(context):
+        from ..kinematics import apply_cartesian_move
+        from ..simulated_hardware import MIROBOT_CARTESIAN_MODE_INFO, MIROBOT_OUTSIDE_WORKSPACE
+        send = context.get("send_response") or (lambda line: None)
+        if state.motion_mode != 1:
+            state.motion_mode = 1
+            send(MIROBOT_CARTESIAN_MODE_INFO)
+        if not apply_cartesian_move(state, {a.upper(): float(v) for a, v in coords}, is_incremental):
+            send(MIROBOT_OUTSIDE_WORKSPACE)
+            return "ok"
+        state.state = "Run"
+        _schedule_idle(state)
+        return "ok"
+
+    state.state = "Run"
     for axis, value in coords:
         val = float(value)
         axis = axis.upper()  # Normalize to uppercase
@@ -135,15 +140,16 @@ def handle_cartesian_movement(command: str, match: Match, state: Any, context: D
         elif axis == "C":
             state.coordinate_RZ = state.coordinate_RZ + val if is_incremental else val
 
-    _maybe_apply_mirobot_ik(state, context)
-    
-    # Schedule state change back to Idle
+    _schedule_idle(state)
+    return "ok"
+
+
+def _schedule_idle(state: Any, after: float = 0.2) -> None:
+    """Back to Idle once the simulated move is done."""
     def set_idle():
-        time.sleep(0.2)
+        time.sleep(after)
         state.state = "Idle"
     threading.Thread(target=set_idle, daemon=True).start()
-    
-    return "ok"
 
 
 def handle_angle_movement(command: str, match: Match, state: Any, context: Dict) -> Optional[str]:
@@ -152,6 +158,10 @@ def handle_angle_movement(command: str, match: Match, state: Any, context: Dict)
     Supports both absolute (G90) and incremental (G91) modes.
     For Mirobot, updates Cartesian pose via FK after applying joint angles.
     """
+    if _is_mirobot_context(context) and state.motion_mode != 0:
+        from ..simulated_hardware import MIROBOT_ANGLE_MODE_INFO
+        state.motion_mode = 0
+        (context.get("send_response") or (lambda line: None))(MIROBOT_ANGLE_MODE_INFO)
     state.state = "Run"
     
     # Check if incremental mode (G91) or absolute mode (G90)
@@ -176,13 +186,7 @@ def handle_angle_movement(command: str, match: Match, state: Any, context: Dict)
             state.angle_C = state.angle_C + val if is_incremental else val
 
     _maybe_apply_mirobot_fk(state, context)
-    
-    # Schedule state change back to Idle
-    def set_idle():
-        time.sleep(0.2)
-        state.state = "Idle"
-    threading.Thread(target=set_idle, daemon=True).start()
-    
+    _schedule_idle(state)
     return "ok"
 
 
@@ -201,16 +205,6 @@ def _maybe_apply_mirobot_fk(state: Any, context: Dict) -> None:
     try:
         from ..kinematics import apply_fk_to_state
         apply_fk_to_state(state)
-    except Exception:
-        pass
-
-
-def _maybe_apply_mirobot_ik(state: Any, context: Dict) -> None:
-    if not _is_mirobot_context(context):
-        return
-    try:
-        from ..kinematics import apply_ik_to_state
-        apply_ik_to_state(state)
     except Exception:
         pass
 

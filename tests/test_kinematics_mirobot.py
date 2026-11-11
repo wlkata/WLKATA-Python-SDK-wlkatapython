@@ -1,147 +1,138 @@
-"""Mirobot FK/IK simulator tests.
+"""Mirobot FK / IK and the simulator, checked against a real arm.
 
-Hardware-calibration cases for writeAngle / writeCoordinate are skipped until
-measured values from real hardware are filled in.
+``tests/data/mirobot_hardware_poses.json`` records a real Mirobot (firmware
+Mirobot,20240820, EXbox,20230710) driven through 47 joint (M21) and coordinate
+(M20) moves from home: each command, what the arm replied besides "ok", and
+the status it reported once Idle. The simulator replays the same commands and
+has to reach the same joints and report the same poses.
 """
 
-import pytest
-import time
+import json
+import pathlib
 
-from wlkatapython.simulator.kinematics import MirobotKinematics, apply_fk_to_state
-from wlkatapython.simulator import RobotState
+import pytest
+
+from wlkatapython.simulator import MirobotSimulator, RobotState
+from wlkatapython.simulator.kinematics import (
+    MirobotKinematics,
+    apply_cartesian_move,
+    apply_fk_to_state,
+    euler_to_matrix,
+    matrix_to_euler,
+)
+from wlkatapython.simulator.simulated_hardware import mirobot_status_line
 
 
 pytestmark = pytest.mark.mirobot
 
+HARDWARE = json.loads((pathlib.Path(__file__).parent / "data" / "mirobot_hardware_poses.json").read_text())
+MOVES = HARDWARE["moves"]
+HOME = (198.67, 0.0, 230.72, 0.0, 0.0, 0.0)
+
+
+def wrap(a):
+    return (a + 180.0) % 360.0 - 180.0
+
+
+def assert_pose(actual, expected, mm, deg, what=""):
+    for i in range(3):
+        assert actual[i] == pytest.approx(expected[i], abs=mm), f"{what} position {i}: {actual} vs {expected}"
+    for i in range(3, 6):
+        assert abs(wrap(actual[i] - expected[i])) <= deg, f"{what} orientation {i}: {actual} vs {expected}"
+
+
+def state_pose(state):
+    return (state.coordinate_X, state.coordinate_Y, state.coordinate_Z,
+            state.coordinate_RX, state.coordinate_RY, state.coordinate_RZ)
+
+
+def state_joints(state):
+    return (state.angle_X, state.angle_Y, state.angle_Z, state.angle_A, state.angle_B, state.angle_C)
+
 
 class TestMirobotKinematicsUnit:
-    """Pure math checks (no hardware)."""
+    """Pure math checks."""
 
-    def test_fk_zero_returns_six_tuple(self):
-        kin = MirobotKinematics()
-        pose = kin.forward([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        assert len(pose) == 6
-        assert all(isinstance(v, float) for v in pose)
-
-    def test_fk_changes_with_joint(self):
-        kin = MirobotKinematics()
-        p0 = kin.forward([0.0] * 6)
-        p1 = kin.forward([30.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        # Base yaw should move X/Y (or at least not be identical pose)
-        assert p0 != p1
+    def test_fk_zero_is_the_home_pose(self):
+        assert_pose(MirobotKinematics().forward([0.0] * 6), HOME, 1e-9, 1e-9)
 
     def test_ik_roundtrip_near_seed(self):
-        """IK should approximately recover joints for a reachable seed pose."""
         kin = MirobotKinematics()
         seed = [10.0, 15.0, -10.0, 5.0, 20.0, 0.0]
-        target = kin.forward(seed)
-        q, ok = kin.inverse(target, seed_deg=seed)
+        q, ok = kin.inverse(kin.forward(seed), seed_deg=seed)
         assert ok
-        for a, b in zip(q, seed):
-            assert abs(a - b) < 2.0  # degrees — numerical DLS tolerance
+        assert q == pytest.approx(seed, abs=1e-6)
+
+    def test_ik_picks_the_solution_nearest_the_current_joints(self):
+        kin = MirobotKinematics()
+        # The same pose with the wrist turned the other way: J4 + 180, -J5 - 180, J6 + 180
+        pose = kin.forward([0.0, 0.0, 0.0, 30.0, -30.0, 0.0])
+        q, _ = kin.inverse(pose, seed_deg=[0.0] * 6)
+        assert q == pytest.approx([0.0, 0.0, 0.0, 30.0, -30.0, 0.0], abs=1e-6)
+        q, _ = kin.inverse(pose, seed_deg=[0.0, 0.0, 0.0, -150.0, -150.0, 180.0])
+        assert q == pytest.approx([0.0, 0.0, 0.0, -150.0, -150.0, 180.0], abs=1e-6)
+
+    def test_ik_rejects_poses_outside_the_workspace(self):
+        seed = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+        q, ok = MirobotKinematics().inverse((400.0, 0.0, 200.0, 0.0, 0.0, 0.0), seed_deg=seed)
+        assert not ok and q == seed
+        # Within reach but past a joint limit (J2 >= -35°)
+        _, ok = MirobotKinematics().inverse((100.0, 0.0, 230.72, 0.0, 0.0, 0.0))
+        assert not ok
+
+    def test_euler_triple_nearest_j4(self):
+        R = euler_to_matrix(0.0, -100.0, 0.0)
+        assert matrix_to_euler(R, near_rx_deg=0.0) == pytest.approx((0.0, -100.0, 0.0), abs=1e-9)
+        other = matrix_to_euler(R, near_rx_deg=170.0)
+        assert all(abs(wrap(x - y)) < 1e-9 for x, y in zip(other, (180.0, -80.0, 180.0))), other
+        # Gimbal lock: Rx = the hint, Rz carries the rest
+        assert matrix_to_euler(euler_to_matrix(20.0, -90.0, 10.0), near_rx_deg=0.0) == pytest.approx((0.0, -90.0, 30.0), abs=1e-6)
 
     def test_apply_fk_to_state(self):
         state = RobotState()
-        state.angle_X = 0.0
-        state.angle_Y = 0.0
-        state.angle_Z = 0.0
-        state.angle_A = 0.0
-        state.angle_B = 0.0
-        state.angle_C = 0.0
         apply_fk_to_state(state)
-        kin = MirobotKinematics()
-        x, y, z, rx, ry, rz = kin.forward([0.0] * 6)
-        assert abs(state.coordinate_X - x) < 1e-6
-        assert abs(state.coordinate_Y - y) < 1e-6
-        assert abs(state.coordinate_Z - z) < 1e-6
+        assert_pose(state_pose(state), HOME, 1e-9, 1e-9)
+        assert state.cartesian_target == pytest.approx(list(HOME), abs=1e-9)
+
+    def test_g91_steps_add_to_the_target_not_the_reported_pose(self):
+        state = RobotState()
+        apply_fk_to_state(state)
+        assert apply_cartesian_move(state, {"X": 200, "Y": 50, "Z": 200, "A": 0, "B": 0, "C": 0})
+        assert state.coordinate_Z == pytest.approx(199.72, abs=0.01)   # reported 0.28 mm low
+        assert apply_cartesian_move(state, {"Z": 8}, incremental=True)
+        assert state.coordinate_Z == pytest.approx(207.72, abs=0.01)   # 200 + 8, still 0.28 mm low
+        # Editing the reported pose by hand makes it the new starting point
+        state.coordinate_Z = 190.0
+        assert apply_cartesian_move(state, {"Z": 10}, incremental=True)
+        assert state.coordinate_Z == pytest.approx(199.72, abs=0.01)
 
 
-class TestMirobotKinematicsHardwareCalibration:
-    """Fill EXPECTED_* from real hardware, then un-skip.
+class TestMirobotAgainstHardware:
+    """The real arm's numbers (tests/data/mirobot_hardware_poses.json)."""
 
-    Mapping (SDK / G-code):
-      writeAngle axes X,Y,Z,A,B,C  ->  joints J1..J6 (degrees)
-      writeCoordinate X,Y,Z,A,B,C  ->  mm and Rx,Ry,Rz (degrees)
+    @pytest.mark.parametrize("move", MOVES, ids=[m["command"] for m in MOVES])
+    def test_fk_gives_the_pose_the_arm_reports(self, move):
+        # The firmware prints three decimals; after a coordinate move its orientation
+        # is up to 0.01° from FK of the joints as printed (finer joint values inside)
+        deg = 0.005 if move["command"].startswith("M21") else 0.02
+        assert_pose(MirobotKinematics().forward(move["joints"]), move["pose"], 0.005, deg, move["command"])
 
-    After angle move, sim runs FK → coordinate_*.
-    After cartesian move, sim runs IK → angle_*.
-    """
+    def test_simulator_replays_the_session_like_the_arm(self):
+        sim = MirobotSimulator()
+        sent = []
+        sim._send_response = sent.append
+        assert_pose(state_pose(sim.state), HOME, 1e-9, 1e-9)
+        for move in MOVES:
+            sent.clear()
+            sim._handle_command(move["command"])
+            assert sent[-1] == "ok", move["command"]
+            assert sent[:-1] == move["replies"], move["command"]
+            # Joint moves land on the commanded angles; the arm's steppers stop within 0.01°
+            for got, want in zip(state_joints(sim.state), move["joints"]):
+                assert abs(wrap(got - want)) <= 0.05, (move["command"], state_joints(sim.state), move["joints"])
+            assert_pose(state_pose(sim.state), move["pose"], 0.05, 0.05, move["command"])
 
-    # --- placeholders: replace with measured hardware values ---
-    # Absolute writeAngle(0, j1..j6) then getStatus / sim coordinates
-    ANGLE_ABS_CMD = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)  # X Y Z A B C deg
-    ANGLE_ABS_EXPECTED_CART = None  # (X, Y, Z, Rx, Ry, Rz) mm/deg or None
-
-    # Incremental writeAngle(1, ...) from a known base pose
-    ANGLE_INC_BASE = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    ANGLE_INC_DELTA = (5.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    ANGLE_INC_EXPECTED_CART = None
-
-    # Absolute writeCoordinate
-    CART_ABS_CMD = (200.0, 0.0, 150.0, 0.0, 0.0, 0.0)  # X Y Z A B C
-    CART_ABS_EXPECTED_JOINTS = None  # (X,Y,Z,A,B,C) joint deg or None
-
-    # Incremental writeCoordinate from base
-    CART_INC_BASE = (200.0, 0.0, 150.0, 0.0, 0.0, 0.0)
-    CART_INC_DELTA = (10.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    CART_INC_EXPECTED_JOINTS = None
-
-    @pytest.mark.skip(reason="Fill ANGLE_ABS_EXPECTED_CART from real hardware, then enable")
-    def test_write_angle_absolute_matches_hardware_cartesian(self, mirobot_with_sim):
-        robot, sim = mirobot_with_sim
-        x, y, z, a, b, c = self.ANGLE_ABS_CMD
-        robot.writeAngle(0, x=x, y=y, z=z, a=a, b=b, c=c)
-        time.sleep(0.4)
-        exp = self.ANGLE_ABS_EXPECTED_CART
-        assert exp is not None
-        assert sim.state.coordinate_X == pytest.approx(exp[0], abs=1.0)
-        assert sim.state.coordinate_Y == pytest.approx(exp[1], abs=1.0)
-        assert sim.state.coordinate_Z == pytest.approx(exp[2], abs=1.0)
-        assert sim.state.coordinate_RX == pytest.approx(exp[3], abs=2.0)
-        assert sim.state.coordinate_RY == pytest.approx(exp[4], abs=2.0)
-        assert sim.state.coordinate_RZ == pytest.approx(exp[5], abs=2.0)
-
-    @pytest.mark.skip(reason="Fill ANGLE_INC_EXPECTED_CART from real hardware, then enable")
-    def test_write_angle_incremental_matches_hardware_cartesian(self, mirobot_with_sim):
-        robot, sim = mirobot_with_sim
-        bx, by, bz, ba, bb, bc = self.ANGLE_INC_BASE
-        robot.writeAngle(0, x=bx, y=by, z=bz, a=ba, b=bb, c=bc)
-        time.sleep(0.3)
-        dx, dy, dz, da, db, dc = self.ANGLE_INC_DELTA
-        robot.writeAngle(1, x=dx, y=dy, z=dz, a=da, b=db, c=dc)
-        time.sleep(0.4)
-        exp = self.ANGLE_INC_EXPECTED_CART
-        assert exp is not None
-        assert sim.state.coordinate_X == pytest.approx(exp[0], abs=1.0)
-        assert sim.state.coordinate_Y == pytest.approx(exp[1], abs=1.0)
-        assert sim.state.coordinate_Z == pytest.approx(exp[2], abs=1.0)
-
-    @pytest.mark.skip(reason="Fill CART_ABS_EXPECTED_JOINTS from real hardware, then enable")
-    def test_write_coordinate_absolute_matches_hardware_joints(self, mirobot_with_sim):
-        robot, sim = mirobot_with_sim
-        x, y, z, a, b, c = self.CART_ABS_CMD
-        robot.writeCoordinate(0, 0, x=x, y=y, z=z, a=a, b=b, c=c)
-        time.sleep(0.5)
-        exp = self.CART_ABS_EXPECTED_JOINTS
-        assert exp is not None
-        assert sim.state.angle_X == pytest.approx(exp[0], abs=2.0)
-        assert sim.state.angle_Y == pytest.approx(exp[1], abs=2.0)
-        assert sim.state.angle_Z == pytest.approx(exp[2], abs=2.0)
-        assert sim.state.angle_A == pytest.approx(exp[3], abs=2.0)
-        assert sim.state.angle_B == pytest.approx(exp[4], abs=2.0)
-        assert sim.state.angle_C == pytest.approx(exp[5], abs=2.0)
-
-    @pytest.mark.skip(reason="Fill CART_INC_EXPECTED_JOINTS from real hardware, then enable")
-    def test_write_coordinate_incremental_matches_hardware_joints(self, mirobot_with_sim):
-        robot, sim = mirobot_with_sim
-        bx, by, bz, ba, bb, bc = self.CART_INC_BASE
-        robot.writeCoordinate(0, 0, x=bx, y=by, z=bz, a=ba, b=bb, c=bc)
-        time.sleep(0.4)
-        dx, dy, dz, da, db, dc = self.CART_INC_DELTA
-        robot.writeCoordinate(0, 1, x=dx, y=dy, z=dz, a=da, b=db, c=dc)
-        time.sleep(0.5)
-        exp = self.CART_INC_EXPECTED_JOINTS
-        assert exp is not None
-        assert sim.state.angle_X == pytest.approx(exp[0], abs=2.0)
-        assert sim.state.angle_Y == pytest.approx(exp[1], abs=2.0)
-        assert sim.state.angle_Z == pytest.approx(exp[2], abs=2.0)
+    def test_status_line_has_the_firmware_format(self):
+        state = RobotState()
+        apply_fk_to_state(state)
+        assert mirobot_status_line(state) == HARDWARE["start"]

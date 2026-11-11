@@ -122,13 +122,15 @@ class TestMirobotMovement:
     def test_writecoordinate_fast(self, mirobot_with_sim, wait_for_idle):
         """Test fast Cartesian movement (G00)."""
         robot, sim = mirobot_with_sim
-        
+
         robot.writecoordinate(0, 0, 200.0, 100.0, 150.0, 0.0, 0.0, 0.0)
         time.sleep(0.3)
-        
-        assert sim.state.coordinate_X == 200.0
-        assert sim.state.coordinate_Y == 100.0
-        assert sim.state.coordinate_Z == 150.0
+
+        # Like the real arm, the simulator reports the pose it reached: with the
+        # tool pointing down that is 0.28 mm below the target (tests/data/mirobot_hardware_poses.json)
+        assert sim.state.coordinate_X == pytest.approx(200.0, abs=0.01)
+        assert sim.state.coordinate_Y == pytest.approx(100.0, abs=0.01)
+        assert sim.state.coordinate_Z == pytest.approx(149.72, abs=0.01)
     
     def test_writecoordinate_linear(self, mirobot_with_sim, wait_for_idle):
         """Test linear Cartesian movement (G01)."""
@@ -136,10 +138,12 @@ class TestMirobotMovement:
         
         robot.writecoordinate(1, 0, 180.0, 50.0, 180.0, 45.0, 0.0, 0.0)
         time.sleep(0.3)
-        
-        assert sim.state.coordinate_X == 180.0
-        assert sim.state.coordinate_Y == 50.0
-        assert sim.state.coordinate_Z == 180.0
+
+        # The pose reached, within 0.3 mm of the target (see test_writecoordinate_fast)
+        assert sim.state.coordinate_X == pytest.approx(180.0, abs=0.3)
+        assert sim.state.coordinate_Y == pytest.approx(50.0, abs=0.3)
+        assert sim.state.coordinate_Z == pytest.approx(180.0, abs=0.3)
+        assert sim.state.coordinate_RX == pytest.approx(45.0, abs=1e-6)
     
     def test_writecoordinate_gate(self, mirobot_with_sim):
         """Test gate-type movement (G05)."""
@@ -147,8 +151,8 @@ class TestMirobotMovement:
         
         robot.writecoordinate(2, 0, 160.0, 60.0, 170.0, 30.0, 15.0, 0.0)
         time.sleep(0.3)
-        
-        assert sim.state.coordinate_X == 160.0
+
+        assert sim.state.coordinate_X == pytest.approx(160.0, abs=0.3)
     
     def test_zero(self, mirobot_with_sim):
         """Test returning to zero position."""
@@ -172,21 +176,22 @@ class TestMirobotMovement:
         robot, sim = mirobot_with_sim
         
         # First move to a known position (absolute: position=0)
-        robot.writecoordinate(0, 0, 100.0, 50.0, 150.0, 0.0, 0.0, 0.0)
+        robot.writecoordinate(0, 0, 200.0, 50.0, 160.0, 0.0, 0.0, 0.0)
         time.sleep(0.3)
-        
-        assert sim.state.coordinate_X == 100.0
-        assert sim.state.coordinate_Y == 50.0
-        assert sim.state.coordinate_Z == 150.0
-        
+
+        # Reported 0.28 mm low with the tool pointing down (see test_writecoordinate_fast)
+        assert sim.state.coordinate_X == pytest.approx(200.0, abs=0.01)
+        assert sim.state.coordinate_Y == pytest.approx(50.0, abs=0.01)
+        assert sim.state.coordinate_Z == pytest.approx(159.72, abs=0.01)
+
         # Then move incrementally (position=1 means G91)
         robot.writecoordinate(0, 1, 10.0, 10.0, 10.0, 0.0, 0.0, 0.0)
         time.sleep(0.3)
-        
-        # Should add to current position
-        assert sim.state.coordinate_X == 110.0
-        assert sim.state.coordinate_Y == 60.0
-        assert sim.state.coordinate_Z == 160.0
+
+        # Steps add to the target (Z 160 + 10), not to the pose reported for it
+        assert sim.state.coordinate_X == pytest.approx(210.0, abs=0.01)
+        assert sim.state.coordinate_Y == pytest.approx(60.0, abs=0.01)
+        assert sim.state.coordinate_Z == pytest.approx(169.72, abs=0.01)
     
     def test_writeexpand(self, mirobot_with_sim):
         """Test 7th axis (expand) movement."""
@@ -707,7 +712,7 @@ class TestWaitIdle:
         """Test waitIdle poll mode returns True after motion completes."""
         robot, sim = mirobot_with_sim
         robot.setWaitMode("poll")
-        robot.writeCoordinate(0, 0, x=100)
+        robot.writeCoordinate(0, 0, x=200)   # within reach (x=100 at this height is not)
         result = robot.waitIdle(timeout=5)
         assert result is True
 
@@ -724,7 +729,7 @@ class TestWaitIdle:
         robot, sim = mirobot_with_sim
         sim.set_auto_report(True)
         robot.setWaitMode("event")
-        robot.writeCoordinate(0, 0, x=100)
+        robot.writeCoordinate(0, 0, x=200)   # within reach (x=100 at this height is not)
         result = robot.waitIdle(timeout=5)
         assert result is True
 

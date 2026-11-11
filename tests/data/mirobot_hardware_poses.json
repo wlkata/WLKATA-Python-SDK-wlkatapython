@@ -1,0 +1,1008 @@
+{
+ "about": "A real Mirobot driven with M21 (joint) and M20 (coordinate) moves, in this order, starting homed at joints 0. After each move: the extra lines the arm replied besides \"ok\", and its status once it reported Idle (? query). joints = J1..J6 (status X, Y, Z, A, B, C) in degrees; pose = X, Y, Z mm, Rx, Ry, Rz degrees. The last move is outside the workspace (E118, no motion).",
+ "robot": "Mirobot",
+ "firmware": "Mirobot,20240820",
+ "exbox": "EXbox,20230710",
+ "recorded": "2026-11-10",
+ "start": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+ "moves": [
+  {
+   "command": "M21G90G00X30.0Y0.0Z0.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,29.990,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):172.071,99.305,230.720,0.000,0.000,29.990,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    29.99,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    172.071,
+    99.305,
+    230.72,
+    0.0,
+    0.0,
+    29.99
+   ]
+  },
+  {
+   "command": "M21G90G00X-30.0Y0.0Z0.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,-29.990,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):172.071,-99.305,230.720,0.000,0.000,-29.990,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    -29.99,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    172.071,
+    -99.305,
+    230.72,
+    0.0,
+    0.0,
+    -29.99
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y20.0Z0.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,20.001,0.000,Cartesian coordinate(XYZ RxRyRz):223.954,0.000,166.668,0.000,20.001,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    20.001,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    223.954,
+    0.0,
+    166.668,
+    0.0,
+    20.001,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y-15.0Z0.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,-14.999,0.000,Cartesian coordinate(XYZ RxRyRz):166.069,0.000,270.920,0.000,-14.999,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    -14.999,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    166.069,
+    0.0,
+    270.92,
+    0.0,
+    -14.999,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z20.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,20.000,Cartesian coordinate(XYZ RxRyRz):187.015,0.000,173.184,0.000,20.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    20.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    187.015,
+    0.0,
+    173.184,
+    0.0,
+    20.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z-20.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,-20.000,Cartesian coordinate(XYZ RxRyRz):189.943,0.000,288.773,0.000,-20.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    -20.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    189.943,
+    0.0,
+    288.773,
+    0.0,
+    -20.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A30.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):30.000,0.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,12.140,233.973,30.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    30.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    198.67,
+    12.14,
+    233.973,
+    30.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B-30.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-29.999,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):210.810,0.000,233.973,0.000,-29.999,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -29.999,
+    0.0
+   ],
+   "pose": [
+    210.81,
+    0.0,
+    233.973,
+    0.0,
+    -29.999,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B20.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,20.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):190.366,0.000,232.184,0.000,20.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    20.0,
+    0.0
+   ],
+   "pose": [
+    190.366,
+    0.0,
+    232.184,
+    0.0,
+    20.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B0.0C45.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,44.999,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,0.000,0.000,44.999,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    44.999
+   ],
+   "pose": [
+    198.67,
+    0.0,
+    230.72,
+    0.0,
+    0.0,
+    44.999
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A30.0B-30.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):30.000,-29.999,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):210.810,10.514,236.790,33.690,-25.658,-16.102,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    30.0,
+    -29.999,
+    0.0
+   ],
+   "pose": [
+    210.81,
+    10.514,
+    236.79,
+    33.69,
+    -25.658,
+    -16.102
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B-30.0C45.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-29.999,44.999,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):210.810,0.000,233.973,-22.207,-20.705,49.105,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -29.999,
+    44.999
+   ],
+   "pose": [
+    210.81,
+    0.0,
+    233.973,
+    -22.207,
+    -20.705,
+    49.105
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A30.0B-30.0C45.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):30.000,-29.999,44.999,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):210.810,10.514,236.790,3.615,-41.279,35.424,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    30.0,
+    -29.999,
+    44.999
+   ],
+   "pose": [
+    210.81,
+    10.514,
+    236.79,
+    3.615,
+    -41.279,
+    35.424
+   ]
+  },
+  {
+   "command": "M21G90G00X-25.0Y15.0Z-10.0A20.0B-40.0C30.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):20.000,-39.999,29.999,0.000,-25.010,14.999,-10.000,Cartesian coordinate(XYZ RxRyRz):221.768,-96.439,217.747,2.045,-39.319,-3.835,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    -25.01,
+    14.999,
+    -10.0,
+    20.0,
+    -39.999,
+    29.999
+   ],
+   "pose": [
+    221.768,
+    -96.439,
+    217.747,
+    2.045,
+    -39.319,
+    -3.835
+   ]
+  },
+  {
+   "command": "M21G90G00X40.0Y10.0Z10.0A-30.0B-20.0C-45.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):-30.000,-20.000,-44.999,0.000,39.994,9.998,10.000,Cartesian coordinate(XYZ RxRyRz):172.136,129.517,172.957,-22.359,-17.566,8.965,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    39.994,
+    9.998,
+    10.0,
+    -30.0,
+    -20.0,
+    -44.999
+   ],
+   "pose": [
+    172.136,
+    129.517,
+    172.957,
+    -22.359,
+    -17.566,
+    8.965
+   ]
+  },
+  {
+   "command": "M21G90G00X15.0Y-10.0Z15.0A45.0B-60.0C60.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):45.000,-59.999,59.999,0.000,15.006,-9.998,15.000,Cartesian coordinate(XYZ RxRyRz):192.133,60.391,228.165,-17.920,-63.286,57.934,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    15.006,
+    -9.998,
+    15.0,
+    45.0,
+    -59.999,
+    59.999
+   ],
+   "pose": [
+    192.133,
+    60.391,
+    228.165,
+    -17.92,
+    -63.286,
+    57.934
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    198.67,
+    0.0,
+    230.72,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M20G90G00X200.0Y50.0Z200.0A0.0B0.0C0.0",
+   "replies": [
+    "Info,M20: Cartesian mode start."
+   ],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-10.386,-14.045,0.000,14.036,3.530,6.859,Cartesian coordinate(XYZ RxRyRz):200.000,50.000,199.713,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    14.036,
+    3.53,
+    6.859,
+    0.0,
+    -10.386,
+    -14.045
+   ],
+   "pose": [
+    200.0,
+    50.0,
+    199.713,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M20G90G00X180.0Y-60.0Z180.0A0.0B0.0C30.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-17.159,48.431,0.000,-18.443,-3.882,21.047,Cartesian coordinate(XYZ RxRyRz):179.987,-60.025,179.710,0.000,0.000,29.987,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    -18.443,
+    -3.882,
+    21.047,
+    0.0,
+    -17.159,
+    48.431
+   ],
+   "pose": [
+    179.987,
+    -60.025,
+    179.71,
+    0.0,
+    0.0,
+    29.987
+   ]
+  },
+  {
+   "command": "M20G90G00X220.0Y0.0Z170.0A10.0B-15.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):12.547,-34.670,8.318,0.000,-1.124,10.112,10.406,Cartesian coordinate(XYZ RxRyRz):220.068,0.022,169.728,10.003,-14.996,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    -1.124,
+    10.112,
+    10.406,
+    12.547,
+    -34.67,
+    8.318
+   ],
+   "pose": [
+    220.068,
+    0.022,
+    169.728,
+    10.003,
+    -14.996,
+    0.0
+   ]
+  },
+  {
+   "command": "M20G90G00X150.0Y100.0Z220.0A0.0B20.0C-20.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):15.734,8.523,-52.294,0.000,31.643,-7.649,11.531,Cartesian coordinate(XYZ RxRyRz):149.915,100.030,219.737,0.000,20.002,-20.008,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    31.643,
+    -7.649,
+    11.531,
+    15.734,
+    8.523,
+    -52.294
+   ],
+   "pose": [
+    149.915,
+    100.03,
+    219.737,
+    0.0,
+    20.002,
+    -20.008
+   ]
+  },
+  {
+   "command": "M20G90G00X210.81Y10.514Z236.79A33.69B-25.658C-16.102",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):30.000,-30.079,0.000,0.000,0.044,0.061,0.016,Cartesian coordinate(XYZ RxRyRz):210.949,10.667,236.561,33.687,-25.650,-16.096,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    0.044,
+    0.061,
+    0.016,
+    30.0,
+    -30.079,
+    0.0
+   ],
+   "pose": [
+    210.949,
+    10.667,
+    236.561,
+    33.687,
+    -25.65,
+    -16.096
+   ]
+  },
+  {
+   "command": "M20G90G00X192.133Y60.391Z228.165A-17.92B-63.286C57.934",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):45.031,-60.055,60.021,0.000,15.028,-9.875,14.938,Cartesian coordinate(XYZ RxRyRz):192.341,60.517,228.023,-17.888,-63.283,57.894,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    15.028,
+    -9.875,
+    14.938,
+    45.031,
+    -60.055,
+    60.021
+   ],
+   "pose": [
+    192.341,
+    60.517,
+    228.023,
+    -17.888,
+    -63.283,
+    57.894
+   ]
+  },
+  {
+   "command": "M20G90G00X240.0Y-40.0Z165.0A-20.0B10.0C15.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):-23.250,-16.511,16.886,0.000,-7.316,26.262,-7.078,Cartesian coordinate(XYZ RxRyRz):239.986,-40.074,164.746,-20.003,10.008,15.019,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    -7.316,
+    26.262,
+    -7.078,
+    -23.25,
+    -16.511,
+    16.886
+   ],
+   "pose": [
+    239.986,
+    -40.074,
+    164.746,
+    -20.003,
+    10.008,
+    15.019
+   ]
+  },
+  {
+   "command": "M20G90G00X170.0Y80.0Z260.0A15.0B-30.0C40.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):23.938,-14.261,22.863,0.000,22.322,-7.978,-1.000,Cartesian coordinate(XYZ RxRyRz):170.057,80.142,259.770,14.998,-30.000,40.002,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    22.322,
+    -7.978,
+    -1.0,
+    23.938,
+    -14.261,
+    22.863
+   ],
+   "pose": [
+    170.057,
+    80.142,
+    259.77,
+    14.998,
+    -30.0,
+    40.002
+   ]
+  },
+  {
+   "command": "M20G90G00X200.0Y50.0Z200.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-10.386,-14.045,0.000,14.036,3.530,6.859,Cartesian coordinate(XYZ RxRyRz):200.000,50.000,199.713,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    14.036,
+    3.53,
+    6.859,
+    0.0,
+    -10.386,
+    -14.045
+   ],
+   "pose": [
+    200.0,
+    50.0,
+    199.713,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M20G91G00X10.0Y-5.0Z8.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-7.409,-12.091,0.000,12.097,7.948,-0.531,Cartesian coordinate(XYZ RxRyRz):209.998,45.009,207.704,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    12.097,
+    7.948,
+    -0.531,
+    0.0,
+    -7.409,
+    -12.091
+   ],
+   "pose": [
+    209.998,
+    45.009,
+    207.704,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M20G91G00X0.0Y0.0Z0.0A5.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):4.953,-8.432,-10.863,0.000,11.546,7.719,-0.250,Cartesian coordinate(XYZ RxRyRz):210.001,45.019,207.698,4.999,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    11.546,
+    7.719,
+    -0.25,
+    4.953,
+    -8.432,
+    -10.863
+   ],
+   "pose": [
+    210.001,
+    45.019,
+    207.698,
+    4.999,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M20G91G00X0.0Y0.0Z0.0A0.0B-8.0C12.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):5.266,-15.556,1.886,0.000,11.524,6.178,1.484,Cartesian coordinate(XYZ RxRyRz):210.039,45.017,207.711,5.007,-7.998,11.998,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    11.524,
+    6.178,
+    1.484,
+    5.266,
+    -15.556,
+    1.886
+   ],
+   "pose": [
+    210.039,
+    45.017,
+    207.711,
+    5.007,
+    -7.998,
+    11.998
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B0.0C0.0",
+   "replies": [
+    "Info,M21: Angle mode start."
+   ],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    198.67,
+    0.0,
+    230.72,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B-100.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-99.998,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):222.581,0.000,259.215,0.000,-99.998,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -99.998,
+    0.0
+   ],
+   "pose": [
+    222.581,
+    0.0,
+    259.215,
+    0.0,
+    -99.998,
+    0.0
+   ]
+  },
+  {
+   "command": "M20G91G00X0.0Y0.0Z5.0A0.0B0.0C0.0",
+   "replies": [
+    "Info,M20: Cartesian mode start."
+   ],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-98.282,0.000,0.000,0.000,0.505,-2.219,Cartesian coordinate(XYZ RxRyRz):222.860,0.000,264.255,0.000,-99.996,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    0.0,
+    0.505,
+    -2.219,
+    0.0,
+    -98.282,
+    0.0
+   ],
+   "pose": [
+    222.86,
+    0.0,
+    264.255,
+    0.0,
+    -99.996,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B0.0C0.0",
+   "replies": [
+    "Info,M21: Angle mode start."
+   ],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    198.67,
+    0.0,
+    230.72,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B-90.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-89.998,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):222.950,0.000,254.999,0.000,-90.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -89.998,
+    0.0
+   ],
+   "pose": [
+    222.95,
+    0.0,
+    254.999,
+    0.0,
+    -90.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B-80.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-79.998,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):222.581,0.000,250.783,0.000,-79.998,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -79.998,
+    0.0
+   ],
+   "pose": [
+    222.581,
+    0.0,
+    250.783,
+    0.0,
+    -79.998,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A20.0B-100.0C30.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):20.000,-99.998,29.999,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):222.581,-1.442,258.961,45.584,-103.480,-49.835,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    20.0,
+    -99.998,
+    29.999
+   ],
+   "pose": [
+    222.581,
+    -1.442,
+    258.961,
+    45.584,
+    -103.48,
+    -49.835
+   ]
+  },
+  {
+   "command": "M21G90G00X20.0Y10.0Z10.0A0.0B-120.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-119.997,0.000,0.000,20.008,9.998,10.000,Cartesian coordinate(XYZ RxRyRz):223.619,81.426,198.580,0.000,-99.999,20.008,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    20.008,
+    9.998,
+    10.0,
+    0.0,
+    -119.997,
+    0.0
+   ],
+   "pose": [
+    223.619,
+    81.426,
+    198.58,
+    0.0,
+    -99.999,
+    20.008
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A-30.0B-110.0C-20.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):-30.000,-109.998,-20.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):221.486,4.152,262.191,32.889,-110.652,-24.334,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    -30.0,
+    -109.998,
+    -20.0
+   ],
+   "pose": [
+    221.486,
+    4.152,
+    262.191,
+    32.889,
+    -110.652,
+    -24.334
+   ]
+  },
+  {
+   "command": "M21G90G00X-15.0Y5.0Z-5.0A40.0B-130.0C-45.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):40.000,-129.997,-44.999,0.000,-15.006,5.001,-5.000,Cartesian coordinate(XYZ RxRyRz):216.359,-68.383,266.539,119.521,2.265,-132.062,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    -15.006,
+    5.001,
+    -5.0,
+    40.0,
+    -129.997,
+    -44.999
+   ],
+   "pose": [
+    216.359,
+    -68.383,
+    266.539,
+    119.521,
+    2.265,
+    -132.062
+   ]
+  },
+  {
+   "command": "M21G90G00X10.0Y0.0Z0.0A0.0B-100.0C90.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-99.998,89.998,0.000,10.004,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):219.197,38.666,259.215,80.002,-180.000,-79.996,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    10.004,
+    0.0,
+    0.0,
+    0.0,
+    -99.998,
+    89.998
+   ],
+   "pose": [
+    219.197,
+    38.666,
+    259.215,
+    80.002,
+    -180.0,
+    -79.996
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    198.67,
+    0.0,
+    230.72,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X10.0Y0.0Z0.0A0.0B-100.0C90.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-99.998,89.998,0.000,10.004,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):219.197,38.666,259.215,80.002,-180.000,-79.996,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    10.004,
+    0.0,
+    0.0,
+    0.0,
+    -99.998,
+    89.998
+   ],
+   "pose": [
+    219.197,
+    38.666,
+    259.215,
+    80.002,
+    -180.0,
+    -79.996
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    198.67,
+    0.0,
+    230.72,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B-100.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-99.998,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):222.581,0.000,259.215,0.000,-99.998,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -99.998,
+    0.0
+   ],
+   "pose": [
+    222.581,
+    0.0,
+    259.215,
+    0.0,
+    -99.998,
+    0.0
+   ]
+  },
+  {
+   "command": "M21G90G00X10.0Y0.0Z0.0A0.0B-100.0C90.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,-99.998,89.998,0.000,10.004,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):219.197,38.666,259.215,80.002,-180.000,-79.996,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    10.004,
+    0.0,
+    0.0,
+    0.0,
+    -99.998,
+    89.998
+   ],
+   "pose": [
+    219.197,
+    38.666,
+    259.215,
+    80.002,
+    -180.0,
+    -79.996
+   ]
+  },
+  {
+   "command": "M21G90G00X0.0Y0.0Z0.0A0.0B0.0C0.0",
+   "replies": [],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    198.67,
+    0.0,
+    230.72,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "command": "M20G90G00X400Y0Z200A0B0C0",
+   "replies": [
+    "Info,M20: Cartesian mode start.",
+    "Error,E118,The given location is outside the workspace."
+   ],
+   "status": "<Idle,Angle(ABCDXYZ):0.000,0.000,0.000,0.000,0.000,0.000,0.000,Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,0.000,0.000,0.000,Pump PWM:0,Valve PWM:0,Motion_MODE:1>",
+   "joints": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pose": [
+    198.67,
+    0.0,
+    230.72,
+    0.0,
+    0.0,
+    0.0
+   ]
+  }
+ ]
+}

@@ -50,7 +50,12 @@ class RobotState:
     coordinate_RX: float = 0.0
     coordinate_RY: float = 0.0
     coordinate_RZ: float = 0.0
-    
+
+    # Mirobot: the last coordinate-move target [X, Y, Z, Rx, Ry, Rz]. The arm
+    # reports the pose it reached, which can differ slightly, and adds G91
+    # steps to this target.
+    cartesian_target: Optional[List[float]] = None
+
     # End effector state
     pump_pwm: int = 0
     valve_pwm: int = 0
@@ -65,6 +70,30 @@ class RobotState:
     
     # Speed setting
     speed: int = 100
+
+
+def _status_number(value: float) -> str:
+    return f"{round(float(value), 3) + 0.0:.3f}"   # three decimals, never "-0.000"
+
+
+def mirobot_status_line(state: RobotState) -> str:
+    """The status line a Mirobot sends for ``?`` and auto-report, three decimals like the firmware."""
+    n = _status_number
+    return (f"<{state.state},"
+            f"Angle(ABCDXYZ):{n(state.angle_A)},{n(state.angle_B)},{n(state.angle_C)},"
+            f"{n(state.angle_D)},{n(state.angle_X)},{n(state.angle_Y)},{n(state.angle_Z)},"
+            f"Cartesian coordinate(XYZ RxRyRz):{n(state.coordinate_X)},{n(state.coordinate_Y)},"
+            f"{n(state.coordinate_Z)},{n(state.coordinate_RX)},{n(state.coordinate_RY)},"
+            f"{n(state.coordinate_RZ)},"
+            f"Pump PWM:{state.pump_pwm},Valve PWM:{state.valve_pwm},"
+            f"Motion_MODE:{state.motion_mode}>")
+
+
+# What a Mirobot prints when a move switches its motion mode (Motion_MODE 1 / 0),
+# and when a coordinate move is outside the workspace (it then does not move)
+MIROBOT_CARTESIAN_MODE_INFO = "Info,M20: Cartesian mode start."
+MIROBOT_ANGLE_MODE_INFO = "Info,M21: Angle mode start."
+MIROBOT_OUTSIDE_WORKSPACE = "Error,E118,The given location is outside the workspace."
 
 
 @dataclass
@@ -294,17 +323,7 @@ class SimulatedHardware:
 
     def _build_status_response(self):
         """Build a status response string from current state."""
-        s = self.state
-        return (f"<{s.state},"
-                f"Angle(ABCDXYZ):{s.angle_A:.1f},{s.angle_B:.1f},"
-                f"{s.angle_C:.1f},{s.angle_D:.1f},{s.angle_X:.1f},"
-                f"{s.angle_Y:.1f},{s.angle_Z:.1f},"
-                f"Cartesian coordinate(XYZ RxRyRz):{s.coordinate_X:.1f},"
-                f"{s.coordinate_Y:.1f},{s.coordinate_Z:.1f},"
-                f"{s.coordinate_RX:.1f},{s.coordinate_RY:.1f},"
-                f"{s.coordinate_RZ:.1f},"
-                f"Pump PWM:{s.pump_pwm},Valve PWM:{s.valve_pwm},"
-                f"Motion_MODE:{s.motion_mode}>")
+        return mirobot_status_line(self.state)
 
     def message_print(self, flag: bool):
         """Enable/disable debug message printing."""
@@ -468,20 +487,11 @@ class MirobotSimulator(SimulatedHardware):
     
     def _register_default_commands(self):
         """Register Mirobot-specific command handlers."""
-        
+
         # Status query
         def handle_status(cmd, match, state):
-            return (f"<{state.state},"
-                    f"Angle(ABCDXYZ):{state.angle_A:.1f},{state.angle_B:.1f},"
-                    f"{state.angle_C:.1f},{state.angle_D:.1f},{state.angle_X:.1f},"
-                    f"{state.angle_Y:.1f},{state.angle_Z:.1f},"
-                    f"Cartesian coordinate(XYZ RxRyRz):{state.coordinate_X:.1f},"
-                    f"{state.coordinate_Y:.1f},{state.coordinate_Z:.1f},"
-                    f"{state.coordinate_RX:.1f},{state.coordinate_RY:.1f},"
-                    f"{state.coordinate_RZ:.1f},"
-                    f"Pump PWM:{state.pump_pwm},Valve PWM:{state.valve_pwm},"
-                    f"Motion_MODE:{state.motion_mode}>")
-        
+            return mirobot_status_line(state)
+
         self.add_command_response(r"^\?$", "", handle_status)
         
         # Version query
@@ -537,34 +547,24 @@ class MirobotSimulator(SimulatedHardware):
         
         self.add_command_response(r"^F(\d+)$", "", handle_speed)
         
-        # Cartesian movement (M20) — update pose then IK for joints
+        # Cartesian movement (M20) — IK to the target, then report the pose reached
         def handle_cartesian(cmd, match, state):
-            from .kinematics import apply_ik_to_state
+            from .kinematics import apply_cartesian_move
 
-            state.state = "Run"
-            
+            if state.motion_mode != 1:
+                state.motion_mode = 1
+                self._send_response(MIROBOT_CARTESIAN_MODE_INFO)
+
             # Check if incremental mode (G91) or absolute mode (G90)
             is_incremental = "G91" in cmd.upper()
-            
-            # Parse coordinates from command
-            coords = re.findall(r"([XYZABC])([-\d.]+)", cmd)
-            for axis, value in coords:
-                val = float(value)
-                if axis == "X":
-                    state.coordinate_X = state.coordinate_X + val if is_incremental else val
-                elif axis == "Y":
-                    state.coordinate_Y = state.coordinate_Y + val if is_incremental else val
-                elif axis == "Z":
-                    state.coordinate_Z = state.coordinate_Z + val if is_incremental else val
-                elif axis == "A":
-                    state.coordinate_RX = state.coordinate_RX + val if is_incremental else val
-                elif axis == "B":
-                    state.coordinate_RY = state.coordinate_RY + val if is_incremental else val
-                elif axis == "C":
-                    state.coordinate_RZ = state.coordinate_RZ + val if is_incremental else val
 
-            apply_ik_to_state(state)
-            
+            # Parse coordinates from command (A, B, C are Rx, Ry, Rz)
+            values = {axis: float(value) for axis, value in re.findall(r"([XYZABC])([-\d.]+)", cmd)}
+            if not apply_cartesian_move(state, values, is_incremental):
+                self._send_response(MIROBOT_OUTSIDE_WORKSPACE)
+                return "ok"
+            state.state = "Run"
+
             def set_idle():
                 time.sleep(0.2)
                 state.state = "Idle"
@@ -580,6 +580,9 @@ class MirobotSimulator(SimulatedHardware):
         def handle_angle(cmd, match, state):
             from .kinematics import apply_fk_to_state
 
+            if state.motion_mode != 0:
+                state.motion_mode = 0
+                self._send_response(MIROBOT_ANGLE_MODE_INFO)
             state.state = "Run"
             
             # Check if incremental mode (G91) or absolute mode (G90)
