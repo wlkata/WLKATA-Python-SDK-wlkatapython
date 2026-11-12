@@ -2,7 +2,7 @@
 
 Control WLKATA robotic arms and motion controllers from Python.
 
-**Package version:** 1.0.1
+**Package version:** 1.0.1.post1
 
 Python 3.8 or newer. MIT License.
 

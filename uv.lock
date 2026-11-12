@@ -2315,7 +2315,7 @@ wheels = [
 
 [[package]]
 name = "wlkatapython-dev"
-version = "1.0.1"
+version = "1.0.1.post1"
 source = { editable = "." }
 dependencies = [
     { name = "pyserial" },
