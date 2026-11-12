@@ -56,6 +56,10 @@ class RobotState:
     # steps to this target.
     cartesian_target: Optional[List[float]] = None
 
+    # MT4: what its firmware keeps between moves (kinematics.mt4.MT4Motion),
+    # made from the joints on the first move
+    mt4_motion: Optional[Any] = None
+
     # End effector state
     pump_pwm: int = 0
     valve_pwm: int = 0
@@ -878,138 +882,90 @@ class E4Simulator(SimulatedHardware):
 
 
 class MT4Simulator(SimulatedHardware):
-    """Simulated MT4 robot arm (4-axis)."""
-    
+    """Simulated MT4 robot arm (4-axis).
+
+    Joint and coordinate moves, their limits and the status it reports follow
+    a real MT4 (see ``kinematics/mt4.py``).
+    """
+
     def __init__(self, address: int = -1, use_json_config: bool = False):
         super().__init__(RobotModel.MT4, address, use_json_config)
         self._firmware_version = "MT4 V1.0.0"
         self._exbox_version = "EXbox V1.0.0"
-    
+        # Homed: zero joints at X 230, Y 0, Z 255.57
+        from .kinematics import mt4
+        mt4.home(self.state)
+
     def _register_default_commands(self):
-        """Register MT4-specific command handlers (similar to E4)."""
-        
-        # Status query
+        """Register MT4-specific command handlers."""
+        from .kinematics import mt4
+
+        # Status query: the same line as the Mirobot's (seven angles, six coordinates)
         def handle_status(cmd, match, state):
-            return (f"<{state.state},"
-                    f"Angle(ABCDXYZ):{state.angle_A:.1f},{state.angle_B:.1f},"
-                    f"{state.angle_C:.1f},{state.angle_D:.1f},{state.angle_X:.1f},"
-                    f"{state.angle_Y:.1f},{state.angle_Z:.1f},"
-                    f"Cartesian coordinate(XYZ RxRyRz):{state.coordinate_X:.1f},"
-                    f"{state.coordinate_Y:.1f},{state.coordinate_Z:.1f},"
-                    f"{state.coordinate_RX:.1f},{state.coordinate_RY:.1f},"
-                    f"{state.coordinate_RZ:.1f},"
-                    f"Pump PWM:{state.pump_pwm},Valve PWM:{state.valve_pwm},"
-                    f"Motion_MODE:{state.motion_mode}>")
-        
+            return mirobot_status_line(state)
+
         self.add_command_response(r"^\?$", "", handle_status)
-        
+
         # Version query
         def handle_version(cmd, match, state):
             self._send_response(self._exbox_version)
             return self._firmware_version
-        
+
         self.add_command_response(r"^\$V$", "", handle_version)
-        
-        # Homing command
-        def handle_homing(cmd, match, state):
-            state.state = "Home"
-            state.angle_A = state.angle_X = state.angle_Y = state.angle_Z = 0.0
-            state.coordinate_X = 150.0
-            state.coordinate_Y = 0.0
-            state.coordinate_Z = 200.0
-            state.coordinate_RX = 0.0
-            
+
+        def report_when_idle(state, after):
             def set_idle():
-                time.sleep(0.5)
+                time.sleep(after)
                 state.state = "Idle"
                 if self._auto_report:
                     self._send_response(self._build_status_response())
             threading.Thread(target=set_idle, daemon=True).start()
-            
+
+        # Homing command
+        def handle_homing(cmd, match, state):
+            state.state = "Home"
+            mt4.home(state)
+            report_when_idle(state, 0.5)
             return "ok"
-        
+
         self.add_command_response(r"^o105=\d+$", "", handle_homing)
         self.add_command_response(r"^\$h$", "", handle_homing)
-        
+
         # Common commands
         self.add_command_response(r"^o100$", "ok")  # Restart
         self.add_command_response(r"^o117$", "ok")  # Stop
-        
+
         # PWM control with state update
         def handle_pwm(cmd, match, state):
             pwm_value = int(match.group(1))
             state.pump_pwm = pwm_value
             return "ok"
-        
+
         self.add_command_response(r"^M3 S(\d+)$", "", handle_pwm)
-        
+
         # Speed control with state update
         def handle_speed(cmd, match, state):
             speed = int(match.group(1))
             state.speed = speed
             return "ok"
-        
+
         self.add_command_response(r"^F(\d+)$", "", handle_speed)
-        
-        # Movement commands
-        def handle_cartesian(cmd, match, state):
-            state.state = "Run"
-            
-            # Check if incremental mode (G91) or absolute mode (G90)
-            is_incremental = "G91" in cmd.upper()
-            
-            coords = re.findall(r"([XYZA])([-\d.]+)", cmd)
-            for axis, value in coords:
-                val = float(value)
-                if axis == "X":
-                    state.coordinate_X = state.coordinate_X + val if is_incremental else val
-                elif axis == "Y":
-                    state.coordinate_Y = state.coordinate_Y + val if is_incremental else val
-                elif axis == "Z":
-                    state.coordinate_Z = state.coordinate_Z + val if is_incremental else val
-                elif axis == "A":
-                    state.coordinate_RX = state.coordinate_RX + val if is_incremental else val
-            
-            def set_idle():
-                time.sleep(0.2)
-                state.state = "Idle"
-                if self._auto_report:
-                    self._send_response(self._build_status_response())
-            threading.Thread(target=set_idle, daemon=True).start()
-            
-            return "ok"
-        
-        self.add_command_response(r"^M20.*", "", handle_cartesian)
-        
-        def handle_angle(cmd, match, state):
-            state.state = "Run"
-            
-            # Check if incremental mode (G91) or absolute mode (G90)
-            is_incremental = "G91" in cmd.upper()
-            
-            coords = re.findall(r"([XYZA])([-\d.]+)", cmd)
-            for axis, value in coords:
-                val = float(value)
-                if axis == "X":
-                    state.angle_X = state.angle_X + val if is_incremental else val
-                elif axis == "Y":
-                    state.angle_Y = state.angle_Y + val if is_incremental else val
-                elif axis == "Z":
-                    state.angle_Z = state.angle_Z + val if is_incremental else val
-                elif axis == "A":
-                    state.angle_A = state.angle_A + val if is_incremental else val
-            
-            def set_idle():
-                time.sleep(0.2)
-                state.state = "Idle"
-                if self._auto_report:
-                    self._send_response(self._build_status_response())
-            threading.Thread(target=set_idle, daemon=True).start()
-            
-            return "ok"
-        
-        self.add_command_response(r"^M21.*", "", handle_angle)
-    
+
+        # Coordinate (M20) and joint (M21) moves, as the firmware runs them. Like
+        # the arm, a move that turns no motor (refused, or already there) stays
+        # Idle and reports nothing.
+        def handle_move(cmd, match, state):
+            result = mt4.move_from_command(state, cmd)
+            for line in result.lines[:-1]:
+                self._send_response(line)
+            if result.moved:
+                state.state = "Run"
+                report_when_idle(state, 0.2)
+            return result.lines[-1]
+
+        self.add_command_response(r"^M20.*", "", handle_move)
+        self.add_command_response(r"^M21.*", "", handle_move)
+
     def set_firmware_version(self, version: str, exbox_version: str = None):
         """Set the firmware version strings."""
         self._firmware_version = version

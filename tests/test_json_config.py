@@ -483,19 +483,22 @@ class TestConfigInheritance:
         command_names = [cmd.name for cmd in loader.commands]
         assert "expand_axis" not in command_names
     
-    def test_mt4_shares_e4_handlers(self):
-        """Test that MT4 uses the same handlers as E4."""
+    def test_mt4_has_its_own_handlers(self):
+        """The MT4's handlers follow the real arm (kinematics/mt4.py); the E4's are the generic 4-axis ones."""
         e4_loader = ResponseConfigLoader()
         e4_loader.load_default_config("e4")
         
         mt4_loader = ResponseConfigLoader()
         mt4_loader.load_default_config("mt4")
         
-        # Both should use E4 handlers
-        e4_status = next(c for c in e4_loader.commands if c.name == "status_query")
-        mt4_status = next(c for c in mt4_loader.commands if c.name == "status_query")
+        def handlers(loader):
+            return {c.name: c.handler_name for c in loader.commands}
         
-        assert e4_status.handler_name == mt4_status.handler_name
+        assert handlers(e4_loader)["status_query"] == "handle_e4_status_query"
+        mt4 = handlers(mt4_loader)
+        assert mt4["status_query"] == "handle_mt4_status_query"
+        assert mt4["angle_movement"] == mt4["cartesian_movement"] == "handle_mt4_movement"
+        assert mt4["homing"] == mt4["homing_default"] == "handle_mt4_homing"
     
     def test_ms4220_independent_config(self):
         """Test that MS4220 has independent config (no base)."""

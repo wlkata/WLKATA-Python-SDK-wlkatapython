@@ -19,7 +19,9 @@ class MT4_UART(WLKATA_UART):
     _ZERO_CMD = "M21 G90 G00 X0 Y0 Z0 A0 "
     _VERSION_PREFIX = "E4"
     _ANGLE_MAP = _4AXIS_ANGLE_MAP
-    _COORDINATE_MAP = _4AXIS_COORDINATE_MAP
+    # The MT4's flange only turns about the vertical, and the arm reports that
+    # angle (J1 + J4, the A of a coordinate move) as Rz: its Rx and Ry are always 0
+    _COORDINATE_MAP = {**_4AXIS_COORDINATE_MAP, 4: "coordinate_RZ"}
 
     def writeCoordinate(self, motion, position, x=None, y=None, z=None, a=None):
         """Move the MT4 to specified Cartesian coordinates.
@@ -30,7 +32,10 @@ class MT4_UART(WLKATA_UART):
             x (float, optional): X coordinate.
             y (float, optional): Y coordinate.
             z (float, optional): Z coordinate.
-            a (float, optional): A rotation.
+            a (float, optional): The flange's direction about the vertical,
+                in degrees (the arm turns J4 to A - J1). Linear moves (G01)
+                do not turn the flange to A: they keep the direction it had
+                after the last joint move.
         """
         super().writeCoordinate(motion, position, x=x, y=y, z=z, a=a)
 
@@ -65,7 +70,8 @@ class MT4_UART(WLKATA_UART):
         """Get a Cartesian coordinate of the MT4 end effector.
 
         Args:
-            num (int): Coordinate axis (1=X, 2=Y, 3=Z, 4=RX).
+            num (int): Coordinate axis (1=X, 2=Y, 3=Z, 4=the flange's
+                direction, J1 + J4, which the arm reports as Rz).
 
         Returns:
             str: Current coordinate value, or "parameter error/参数错误" if invalid.

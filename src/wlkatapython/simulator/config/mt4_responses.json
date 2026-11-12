@@ -1,33 +1,33 @@
 {
   "_description": "Response configuration for MT4 simulator (4-axis)",
-  "_version": "1.0.0",
+  "_version": "1.1.0",
   "_model": "mt4",
   "_extends": "base",
   
   "commands": [
     {
-      "_comment": "MT4 uses 4-axis status query handler (same as E4)",
+      "_comment": "The MT4 sends the same status line as the Mirobot",
       "name": "status_query",
-      "handler": "handle_e4_status_query"
+      "handler": "handle_mt4_status_query"
     },
     {
-      "_comment": "MT4 uses 4-axis angle movement (same as E4)",
+      "_comment": "Joint moves as the MT4 firmware runs them (kinematics/mt4.py)",
       "name": "angle_movement",
-      "handler": "handle_e4_angle_movement"
+      "handler": "handle_mt4_movement"
     },
     {
-      "_comment": "MT4 uses 4-axis cartesian movement (same as E4)",
+      "_comment": "Coordinate moves as the MT4 firmware runs them (kinematics/mt4.py)",
       "name": "cartesian_movement",
-      "handler": "handle_e4_cartesian_movement"
+      "handler": "handle_mt4_movement"
     },
     {
-      "_comment": "MT4 uses 4-axis homing (same as E4)",
+      "_comment": "Homing ends at zero joints: X 230, Y 0, Z 255.57",
       "name": "homing",
-      "handler": "handle_e4_homing"
+      "handler": "handle_mt4_homing"
     },
     {
       "name": "homing_default",
-      "handler": "handle_e4_homing"
+      "handler": "handle_mt4_homing"
     },
     {
       "_comment": "MT4 does not support expand axis - disabled",

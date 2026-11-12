@@ -59,6 +59,8 @@ from .response_config import (
 )
 
 from .kinematics import (
+    MT4Kinematics,
+    MT4Motion,
     MirobotKinematics,
     apply_fk_to_state,
     apply_ik_to_state,
@@ -87,6 +89,8 @@ __all__ = [
     "STATE_SCENARIOS",
     "apply_state_scenario",
     # Kinematics
+    "MT4Kinematics",
+    "MT4Motion",
     "MirobotKinematics",
     "apply_fk_to_state",
     "apply_ik_to_state",

@@ -337,6 +337,41 @@ Mirobot (firmware 20240820) does, checked against the arm in
 - The joint limits (`JOINT_LIMITS_DEG`) are the 3D model's until the arm's own
   are measured.
 
+### MT4 Commands
+
+The MT4 simulator takes the same `?`, `$V`, homing, `M3`, `F`, `M21` and `M20`
+commands (axes X, Y, Z, A). It moves, refuses and reports the way a real MT4
+(firmware 20240820) does, checked against the arm in
+`tests/data/mt4_hardware_poses.json` (`kinematics/mt4.py`):
+
+- Its geometry, motor steps and limits are the arm's own `$$` settings. At
+  zero joints it reports X 230, Y 0, Z 255.57. J3 is the forearm's angle below
+  horizontal whatever J2 is, and the flange stays level.
+- The flange only turns about the vertical. The arm reports that angle,
+  J1 + J4, as **Rz** (Rx and Ry are always 0), and a coordinate move's A is
+  that angle. `MT4_UART.getCoordinate(4)` reads it.
+- Every joint stops on a whole motor step, and the status is of those steps:
+  a move to J1 = 30 reports 30.009, a move to X 200 Z 150 reports X 200.012
+  Z 150.024.
+- `G91` steps, and axes a move leaves out, start from the last target of the
+  same kind of move, not from the reported pose. The first coordinate move
+  after joint moves starts from the reported position with A = 0, and the
+  first joint move after coordinate moves from the reported angles. Linear
+  moves (`G01`) do not turn the flange to their A: they turn it to the
+  direction it had when the arm last went from joint to coordinate moves, and
+  A is remembered for the next `G00` / `G05` move.
+- A joint target past a travel limit gets `Error,A102,Soft limit:<axis>`,
+  J2 − J3 or J3 − J2 above 60° gets `Error,A107,…`, and a coordinate target the
+  links cannot reach gets `The Cartesian position exceeds the boundary.` The
+  arm does not move, and the reply still ends with `ok` (on the arm, half a
+  second after an error). What a refused move leaves behind for the next
+  `G91` move is in `MT4Motion`'s docstring.
+- With auto-report on (`set_auto_report(True)`), the status is sent once after
+  a move that turned a motor, and not after one that did not (refused, or
+  already there).
+
+The E4 simulator is not matched to an arm: it reports each target as given.
+
 ### GPIO Commands (Mirobot)
 
 | Command | Description |
@@ -519,10 +554,13 @@ def my_handler(
 | Handler Name | Model | Description |
 |-------------|-------|-------------|
 | `handle_mirobot_status_query` | Mirobot | 6-axis status response |
-| `handle_e4_status_query` | E4/MT4 | 4-axis status response |
-| `handle_e4_homing` | E4/MT4 | 4-axis homing |
-| `handle_e4_angle_movement` | E4/MT4 | 4-axis angle movement |
-| `handle_e4_cartesian_movement` | E4/MT4 | 4-axis Cartesian movement |
+| `handle_e4_status_query` | E4 | 4-axis status response |
+| `handle_e4_homing` | E4 | 4-axis homing |
+| `handle_e4_angle_movement` | E4 | 4-axis angle movement |
+| `handle_e4_cartesian_movement` | E4 | 4-axis Cartesian movement |
+| `handle_mt4_status_query` | MT4 | The arm's status line (seven angles, six coordinates) |
+| `handle_mt4_homing` | MT4 | Homing to zero joints |
+| `handle_mt4_movement` | MT4 | Joint and coordinate moves as the firmware runs them |
 | `handle_ms4220_status_query` | MS4220 | Motor status response |
 | `handle_ms4220_speed` | MS4220 | Set motor speed |
 | `handle_ms4220_position` | MS4220 | Absolute position move |

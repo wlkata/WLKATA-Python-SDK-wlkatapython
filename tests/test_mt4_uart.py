@@ -75,10 +75,11 @@ class TestMT4Movement:
         robot.writeangle(0, 20.0, 30.0, 40.0, 50.0)
         time.sleep(0.3)
         
-        assert sim.state.angle_X == 20.0
-        assert sim.state.angle_Y == 30.0
-        assert sim.state.angle_Z == 40.0
-        assert sim.state.angle_A == 50.0
+        # Like the arm, the joints stop on whole motor steps: 20° reads 19.997
+        assert sim.state.angle_X == pytest.approx(20.0, abs=0.02)
+        assert sim.state.angle_Y == pytest.approx(30.0, abs=0.02)
+        assert sim.state.angle_Z == pytest.approx(40.0, abs=0.02)
+        assert sim.state.angle_A == pytest.approx(50.0, abs=0.02)
     
     def test_writecoordinate(self, mt4_with_sim):
         """Test MT4 Cartesian movement."""
@@ -87,10 +88,13 @@ class TestMT4Movement:
         robot.writecoordinate(0, 0, 175.0, 75.0, 155.0, 35.0)
         time.sleep(0.3)
         
-        assert sim.state.coordinate_X == 175.0
-        assert sim.state.coordinate_Y == 75.0
-        assert sim.state.coordinate_Z == 155.0
-        assert sim.state.coordinate_RX == 35.0
+        # The pose of the motor steps nearest the target, as the arm reports it;
+        # A is the flange's direction, which the arm reports as Rz
+        assert sim.state.coordinate_X == pytest.approx(175.0, abs=0.05)
+        assert sim.state.coordinate_Y == pytest.approx(75.0, abs=0.05)
+        assert sim.state.coordinate_Z == pytest.approx(155.0, abs=0.05)
+        assert sim.state.coordinate_RZ == pytest.approx(35.0, abs=0.02)
+        assert sim.state.coordinate_RX == 0.0
     
     def test_zero(self, mt4_with_sim):
         """Test MT4 returning to zero position."""
@@ -133,12 +137,13 @@ class TestMT4Status:
             coordinate_X=185.0,
             coordinate_Y=65.0,
             coordinate_Z=160.0,
-            coordinate_RX=35.0
+            coordinate_RZ=35.0
         )
         
         assert float(robot.getcoordinate(1)) == 185.0
         assert float(robot.getcoordinate(2)) == 65.0
         assert float(robot.getcoordinate(3)) == 160.0
+        # The fourth coordinate is the flange's direction: the arm's Rz
         assert float(robot.getcoordinate(4)) == 35.0
     
     def test_version_with_exbox(self, mt4_with_sim):

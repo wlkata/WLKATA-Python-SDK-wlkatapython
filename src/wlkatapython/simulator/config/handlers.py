@@ -344,7 +344,7 @@ def handle_mirobot_status_query(command: str, match: Match, state: Any, context:
 
 
 # ============================================================================
-# E4/MT4-Specific Handlers (4-axis)
+# E4-Specific Handlers (4-axis)
 # ============================================================================
 
 def handle_e4_status_query(command: str, match: Match, state: Any, context: Dict) -> str:
@@ -453,6 +453,47 @@ def handle_e4_cartesian_movement(command: str, match: Match, state: Any, context
     threading.Thread(target=set_idle, daemon=True).start()
     
     return "ok"
+
+
+# ============================================================================
+# MT4-Specific Handlers (4-axis, matched to the real arm: kinematics/mt4.py)
+# ============================================================================
+
+def handle_mt4_status_query(command: str, match: Match, state: Any, context: Dict) -> str:
+    """
+    MT4 status query: the line the arm sends, the same as the Mirobot's
+    (seven angles, six coordinates, three decimals).
+    """
+    from ..simulated_hardware import mirobot_status_line
+    return mirobot_status_line(state)
+
+
+def handle_mt4_homing(command: str, match: Match, state: Any, context: Dict) -> Optional[str]:
+    """
+    MT4 homing: zero joints at X 230, Y 0, Z 255.57, angle mode.
+    """
+    from ..kinematics import mt4
+    state.state = "Home"
+    mt4.home(state)
+    _schedule_idle(state, 0.5)
+    return "ok"
+
+
+def handle_mt4_movement(command: str, match: Match, state: Any, context: Dict) -> Optional[str]:
+    """
+    MT4 joint (M21...) and coordinate (M20...) moves, run the way the firmware
+    does: whole motor steps, A as the flange's direction, the arm's limits. A
+    refused move prints the arm's message before "ok" and does not move.
+    """
+    from ..kinematics import mt4
+    send = context.get("send_response") or (lambda line: None)
+    result = mt4.move_from_command(state, command)
+    for line in result.lines[:-1]:
+        send(line)
+    if result.moved:
+        state.state = "Run"
+        _schedule_idle(state)
+    return result.lines[-1]
 
 
 # ============================================================================
@@ -570,12 +611,17 @@ HANDLER_REGISTRY = {
     # Mirobot-specific handlers (6-axis)
     "handle_mirobot_status_query": handle_mirobot_status_query,
     
-    # E4/MT4-specific handlers (4-axis)
+    # E4-specific handlers (4-axis)
     "handle_e4_status_query": handle_e4_status_query,
     "handle_e4_homing": handle_e4_homing,
     "handle_e4_angle_movement": handle_e4_angle_movement,
     "handle_e4_cartesian_movement": handle_e4_cartesian_movement,
     
+    # MT4-specific handlers (4-axis, matched to the real arm)
+    "handle_mt4_status_query": handle_mt4_status_query,
+    "handle_mt4_homing": handle_mt4_homing,
+    "handle_mt4_movement": handle_mt4_movement,
+
     # MS4220-specific handlers (stepper motor)
     "handle_ms4220_status_query": handle_ms4220_status_query,
     "handle_ms4220_speed": handle_ms4220_speed,
