@@ -79,7 +79,7 @@ arm.close()
 | `E4_UART` | E4 4-axis SCARA arm |
 | `MT4_UART` | MT4 4-axis arm |
 | `Harobot_UART` | Harobot 7-axis arm |
-| `Miromax_UART` | Miromax (Harobot protocol) |
+| `Miromax_UART` | Miromax arm |
 | `MS4220_UART` | MS4220 stepper controller (slide or conveyor) |
 
 Every class shares homing, speed, status, offline programs, and end-effector helpers. Axis counts differ, so pass only the axes that product uses.

@@ -10,7 +10,8 @@ Supported devices:
 - ``MT4_UART`` -- WLKATA MT4 4-axis robotic arm
 - ``MS4220_UART`` -- WLKATA MS4220 stepper motor controller
 - ``Harobot_UART`` -- WLKATA Harobot 7-axis (G07/G09/M67 protocol)
-- ``Miromax_UART`` -- WLKATA Miromax (same protocol as Harobot; model constants)
+- ``Miromax_UART`` -- WLKATA Miromax (Harobot motion commands; own homing,
+  end effectors and cancel)
 - ``Mirobot_Serial_GUI`` -- Tkinter-based GUI for Mirobot control (optional)
 
 All device classes inherit from ``WLKATA_UART``, which provides the core

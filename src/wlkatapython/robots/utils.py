@@ -34,6 +34,14 @@ def build_axes_string(**kwargs):
 
 _GPIO_PIN_INDEX = {"A0": 0, "A1": 1, "D0": 2, "D1": 3}
 
+# One number in a status line: an optional sign, digits, an optional fraction
+_STATUS_NUMBER = r"[-+]?\d+(?:\.\d+)?"
+
+
+def status_number_groups(count):
+    """Regex for *count* comma-separated status numbers, one group each."""
+    return ",".join([f"({_STATUS_NUMBER})"] * count)
+
 _STATUS_KEYS = (
     "state",
     "angle_A", "angle_B", "angle_C", "angle_D",

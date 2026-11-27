@@ -39,11 +39,16 @@ from .utils import (
     parse_gpio_response,
     deprecated_alias,
     build_axes_string,
+    status_number_groups,
 )
 
 
 class WLKATA_UART:
     _VALID_HOMING_MODES = set(range(11))
+    # A valid mode is sent as this prefix followed by the mode number, unless
+    # _HOMING_OVERRIDES names a different command for that mode
+    _HOMING_PREFIX = "o105="
+    _HOMING_OVERRIDES = {}
     _HOMING_FALLBACK = "$h"
     _ZERO_CMD = "M21 G90 G00 X0 Y0 Z0 A0 B0 C00"
     _VERSION_PREFIX = "Mirobot"
@@ -288,10 +293,15 @@ class WLKATA_UART:
             mode (int): Homing mode. Defaults to 8.
                        Valid modes depend on the robot model.
         """
+        self.sendMsg(self._homing_command(mode))
+
+    def _homing_command(self, mode):
+        """Return the homing command this model sends for *mode*."""
         if isinstance(mode, int) and mode in self._VALID_HOMING_MODES:
-            self.sendMsg(f"o105={mode}")
-        else:
-            self.sendMsg(self._HOMING_FALLBACK)
+            return self._HOMING_OVERRIDES.get(
+                mode, f"{self._HOMING_PREFIX}{mode}"
+            )
+        return self._HOMING_FALLBACK
 
     def runFile(self, fileName, num=False):
         """Execute an offline program file stored on the robot controller.
@@ -571,8 +581,8 @@ class WLKATA_UART:
         self.sendMsg("?")
         if self.pSerial.in_waiting > 0:
             line = self.pSerial.readline().decode('utf-8').strip()
-            if line[0] == "<" and line[-1] == ">":
-                data = self.__parse_response(line)
+            if line.startswith("<") and line.endswith(">"):
+                data = self._parse_status_line(line)
             else:
                 data = -1
         else:
@@ -581,6 +591,18 @@ class WLKATA_UART:
         logger.info(f"status:\t{data}")
         time.sleep(0.1)
         return data
+
+    def _parse_status_line(self, line):
+        """Parse a ``<...>`` status line with this model's parser.
+
+        Models whose status line differs from the Mirobot's override this, so
+        that every reader of status lines (``getStatus`` and the event-mode
+        ``waitIdle``) understands their format.
+
+        Returns:
+            dict or str: Parsed state dictionary, or "parse error".
+        """
+        return self.__parse_response(line)
 
     def __parse_response(self, line):
         """Parse a status response string into the robot state dictionary.
@@ -594,14 +616,13 @@ class WLKATA_UART:
         """
         pattern = (
             r'<(\w+),Angle\(ABCDXYZ\):'
-            r'([\d.-]+),([\d.-]+),([\d.-]+),'
-            r'([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+),'
-            r'Cartesian coordinate\(XYZ RxRyRz\):'
-            r'([\d.-]+),([\d.-]+),([\d.-]+),'
-            r'([\d.-]+),([\d.-]+),([\d.-]+),'
-            r'Pump PWM:([\d.-]+),'
-            r'Valve PWM:([\d.-]+),'
-            r'Motion_MODE:([\d.-]+)>'
+            + status_number_groups(7)
+            + r',Cartesian coordinate\(XYZ RxRyRz\):'
+            + status_number_groups(6)
+            + r',Pump PWM:' + status_number_groups(1)
+            + r',Valve PWM:' + status_number_groups(1)
+            + r',Motion_MODE:' + status_number_groups(1)
+            + r'>'
         )
         match = re.match(pattern, line)
         if match:
@@ -616,10 +637,14 @@ class WLKATA_UART:
         """Get the current motion state of the robot.
 
         Returns:
-            str: Robot state (e.g., "Idle", "Run", "Alarm").
+            str: Robot state (e.g., "Idle", "Run", "Alarm"), or "-1" when
+                the status could not be read: an earlier state is never
+                reported as the current one.
         """
-        self.getStatus()
-        return self.mirobot_state_all["state"]
+        data = self.getStatus()
+        if not isinstance(data, dict):
+            return "-1"
+        return data["state"]
 
     def getAngle(self, num):
         """Get the angle of a specific robot axis.
@@ -988,7 +1013,7 @@ class WLKATA_UART:
                     return False
                 line = raw.decode('utf-8').strip()
                 if line.startswith("<") and line.endswith(">"):
-                    data = self.__parse_response(line)
+                    data = self._parse_status_line(line)
                     if isinstance(data, dict) and data["state"] == "Idle":
                         return True
         finally:

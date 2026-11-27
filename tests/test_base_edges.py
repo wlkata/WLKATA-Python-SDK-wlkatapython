@@ -136,6 +136,66 @@ class TestBaseHelpers:
         r.sendMsg("?")
         assert t.writes[-1].startswith(b"@3")
 
+    MIROBOT_STATUS = (
+        "<Idle,Angle(ABCDXYZ):1.000,2.000,3.000,7.000,10.000,20.000,30.000,"
+        "Cartesian coordinate(XYZ RxRyRz):198.670,0.000,230.720,4.000,5.000,"
+        "6.000,Pump PWM:0,Valve PWM:0,Motion_MODE:0>"
+    )
+
+    def _parse(self, line):
+        return Mirobot_UART()._WLKATA_UART__parse_response(line)
+
+    @pytest.mark.parametrize("number", ["+198.670", "-198.670", "198", "0"])
+    def test_status_accepts_signed_and_whole_numbers(self, number):
+        data = self._parse(self.MIROBOT_STATUS.replace("198.670", number))
+        assert data["coordinate_X"] == number
+        assert data["angle_X"] == "10.000"
+
+    @pytest.mark.parametrize("junk", ["1.2.3", "-", ".", "5.", ".5", "1-2"])
+    def test_status_rejects_malformed_numbers(self, junk):
+        line = self.MIROBOT_STATUS.replace("198.670", junk)
+        assert self._parse(line) == "parse error"
+
+    def test_get_status_empty_line_is_not_a_status(self):
+        t = ScriptedTransport(script=[[""]])
+        r = Mirobot_UART()
+        r.init(t, -1)
+        assert r.getStatus() == -1
+
+    @pytest.mark.parametrize("reply", [[], [""], ["ok"], ["<Idle,bad>"]])
+    def test_get_state_does_not_report_an_old_state(self, reply):
+        t = ScriptedTransport(script=[[self.MIROBOT_STATUS], reply])
+        r = Mirobot_UART()
+        r.init(t, -1)
+        assert r.getState() == "Idle"
+        assert r.getState() == "-1"
+        # the last status that did parse is still there to read
+        assert r.mirobot_state_all["state"] == "Idle"
+
+    def test_wait_idle_poll_does_not_count_an_old_idle(self, monkeypatch):
+        monkeypatch.setattr(time, "sleep", lambda seconds: None)
+        t = ScriptedTransport(script=[[self.MIROBOT_STATUS]])
+        r = Mirobot_UART()
+        r.init(t, -1)
+        assert r.getState() == "Idle"
+        assert r.waitIdle(timeout=0.05) is False
+
+    def test_wait_idle_poll_counts_fresh_idle(self, monkeypatch):
+        monkeypatch.setattr(time, "sleep", lambda seconds: None)
+        t = ScriptedTransport(script=[[self.MIROBOT_STATUS]] * 3)
+        r = Mirobot_UART()
+        r.init(t, -1)
+        assert r.waitIdle(timeout=5) is True
+
+    def test_homing_command_is_unchanged_for_mirobot(self):
+        t = ScriptedTransport()
+        r = Mirobot_UART()
+        r.init(t, -1)
+        r.homing()
+        assert t.writes[-1] == b"o105=8\r\n"
+        r.homing(99)
+        assert t.writes[-1] == b"$h\r\n"
+
 
 class TestMS4220Edges:
     def test_speed_clamping(self):
